@@ -1,0 +1,4 @@
+# Optional, isolated HTTP transport; install into .venv-http.
+mcp==1.30.0
+uvicorn==0.54.0
+jsonschema==4.26.0

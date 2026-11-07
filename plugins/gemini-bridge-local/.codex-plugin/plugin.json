@@ -1,0 +1,12 @@
+{
+  "name": "gemini-bridge-local",
+  "version": "0.1.0",
+  "description": "查看本机 Gemini Bridge 的任务卡片，复用已配置的受控 MCP 连接。",
+  "interface": {
+    "displayName": "Gemini Bridge",
+    "shortDescription": "在聊天中查看任务、进展与交付",
+    "composerIcon": "./assets/gemini.png",
+    "logo": "./assets/gemini.png",
+    "brandColor": "#4285F4"
+  }
+}

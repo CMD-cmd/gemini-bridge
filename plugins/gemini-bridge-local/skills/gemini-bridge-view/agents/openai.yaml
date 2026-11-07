@@ -1,0 +1,6 @@
+interface:
+  display_name: "Gemini Bridge"
+  short_description: "查看 Gemini 任务的实时进展、交付内容及 Codex 检查记录"
+  icon_small: "./assets/gemini.png"
+  icon_large: "./assets/gemini.svg"
+  brand_color: "#4285F4"

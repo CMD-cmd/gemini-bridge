@@ -1,0 +1,6 @@
+interface:
+  display_name: "Gemini Bridge"
+  short_description: "把文案、阅读、视觉与实现任务交给 Gemini，查看进展并核对交付"
+  icon_small: "./assets/gemini.png"
+  icon_large: "./assets/gemini.svg"
+  brand_color: "#4285F4"

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Antigravity · 任务详情</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="toolbar">
+    <button id="history-toggle" class="icon-button" aria-label="查看任务历史" aria-expanded="false" aria-controls="history"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M8 4v12"/></svg></button>
+    <span class="brand">Antigravity <span>Bridge</span></span>
+    <div class="toolbar-actions">
+      <span id="connection" class="connection" role="status"><i></i><span>连接中</span></span>
+      <button id="refresh" class="icon-button" aria-label="刷新任务"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 8a6 6 0 1 0 .1 4M16 3v5h-5"/></svg></button>
+    </div>
+  </header>
+  <div class="workspace">
+    <aside id="history" aria-label="任务历史">
+      <div class="history-heading"><h2>任务</h2><span id="job-count"></span></div>
+      <label class="search"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8" cy="8" r="4.5"/><path d="m12 12 4 4"/></svg><input id="search" type="search" placeholder="搜索任务" aria-label="搜索任务"></label>
+      <nav id="job-list" aria-label="选择任务"></nav>
+    </aside>
+    <main id="main">
+      <div id="load-error" class="load-error" hidden role="alert"></div>
+      <section id="task-header" hidden>
+        <div class="task-eyebrow"><span id="task-kind"></span><span id="task-time"></span></div>
+        <h1 id="task-title"></h1>
+        <div class="task-meta"><span id="task-status" class="status"></span><span id="task-model"></span><span id="task-duration"></span></div>
+        <div id="task-notice" class="notice" hidden></div>
+      </section>
+      <div id="tabs" class="tabs" role="tablist" aria-label="任务详情" hidden>
+        <button id="tab-delivery" role="tab" aria-controls="content" aria-selected="true" data-tab="delivery">交付</button>
+        <button id="tab-submission" role="tab" aria-controls="content" aria-selected="false" data-tab="submission" tabindex="-1">提交</button>
+        <button id="tab-progress" role="tab" aria-controls="content" aria-selected="false" data-tab="progress" tabindex="-1">进度</button>
+        <button id="tab-review" role="tab" aria-controls="content" aria-selected="false" data-tab="review" tabindex="-1">验收</button>
+      </div>
+      <section id="content" role="tabpanel" tabindex="0"><div class="empty"><div class="spinner"></div><h2>正在读取任务</h2></div></section>
+      <footer id="task-footer" hidden><span id="job-id"></span><button id="copy-link" class="text-button">复制任务链接</button></footer>
+    </main>
+  </div>
+  <div id="toast" role="status" hidden></div>
+</body>
+</html>

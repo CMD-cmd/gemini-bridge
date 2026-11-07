@@ -1,0 +1,157 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gemini Bridge · 任务详情</title>
+<style>
+:root,:root[data-theme=light]{color-scheme:light;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--bg:var(--color-background-primary,#ffffff);--ink:var(--color-text-primary,#1f1f1e);--muted:var(--color-text-secondary,#6e6e6a);--line:var(--color-border-primary,#e6e5e1);--soft:var(--color-background-secondary,#f6f5f2);--soft-hover:#efeee9;--accent:#3d7a5a;--accent-soft:rgba(61,122,90,.1);--warn:#9a7432;--warn-soft:rgba(154,116,50,.12);--pending:#52656f;--pending-soft:rgba(82,101,111,.1);--err:#b34e4e;--err-soft:rgba(179,78,78,.1)}
+:root[data-theme=dark]{color-scheme:dark;--bg:var(--color-background-primary,#1e1e1e);--ink:var(--color-text-primary,#ececeb);--muted:var(--color-text-secondary,#9e9e9a);--line:var(--color-border-primary,#343432);--soft:var(--color-background-secondary,#272725);--soft-hover:#31312e;--accent:#74b08e;--accent-soft:rgba(116,176,142,.15);--warn:#d1a75c;--warn-soft:rgba(209,167,92,.15);--pending:#94aab6;--pending-soft:rgba(148,170,182,.15);--err:#de7d7d;--err-soft:rgba(222,125,125,.15)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:var(--color-background-primary,#1e1e1e);--ink:var(--color-text-primary,#ececeb);--muted:var(--color-text-secondary,#9e9e9a);--line:var(--color-border-primary,#343432);--soft:var(--color-background-secondary,#272725);--soft-hover:#31312e;--accent:#74b08e;--accent-soft:rgba(116,176,142,.15);--warn:#d1a75c;--warn-soft:rgba(209,167,92,.15);--pending:#94aab6;--pending-soft:rgba(148,170,182,.15);--err:#de7d7d;--err-soft:rgba(222,125,125,.15)}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink)}
+main{padding:16px 18px;max-width:800px;margin:0 auto}
+body[data-mode=fullscreen] main{max-width:840px;padding:18px 22px 26px}
+main header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;color:var(--muted);font-size:12px}
+.brand{display:inline-flex;align-items:center;gap:6px;font-weight:500;color:var(--ink)}
+.brand-mark{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;background:var(--soft);border:1px solid var(--line);font-size:11px;color:var(--ink)}
+.brand-sub{color:var(--muted);font-weight:400}
+#status{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;line-height:1.3;padding:3px 9px 3px 8px;border-radius:999px;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+#status:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none;box-sizing:border-box}
+#status[data-tone=running]{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+#status[data-tone=running]:before{background:var(--warn)}
+#status[data-tone=pending]{background:var(--pending-soft);color:var(--pending);border-color:transparent}
+#status[data-tone=pending]:before{background:transparent;border:1.75px solid var(--pending)}
+#status[data-tone=done]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+#status[data-tone=done]:before{background:var(--accent)}
+#status[data-tone=error]{background:var(--err-soft);color:var(--err);border-color:transparent}
+#status[data-tone=error]:before{background:var(--err)}
+h1{font-size:17px;line-height:1.4;font-weight:600;letter-spacing:-.2px;margin:10px 0 4px;overflow-wrap:anywhere}
+h2{font-size:13px;font-weight:600;margin:18px 0 8px;color:var(--ink)}
+section#content>h2:first-child{margin-top:0}
+h3,.prose h3,.live-activity h3{font-size:12.5px;font-weight:600;margin:14px 0 6px;color:var(--ink)}
+h4,.prose h4{font-size:12px;font-weight:600;margin:12px 0 4px;color:var(--muted)}
+p{margin:6px 0}
+.model-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 9px;margin:6px 0 9px;font-size:12px;line-height:1.5}
+.model-meta #model{min-width:0;overflow-wrap:anywhere;color:var(--ink);font-weight:600}
+.model-meta #effort{flex:none;padding:1px 7px;border:1px solid var(--line);border-radius:5px;background:var(--soft);color:var(--muted);font-size:11px}
+#summary{color:var(--muted);margin:0;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;margin-top:6px}
+#meta{margin:0;font-size:12px;color:var(--muted)}
+.overview{margin:11px 0 2px;display:grid;gap:6px;padding:10px 12px;background:var(--soft);border:1px solid var(--line);border-radius:9px}
+.overview div{display:grid;grid-template-columns:38px minmax(0,1fr);gap:8px;font-size:12.5px;line-height:1.5;align-items:baseline}
+.overview dt{color:var(--muted);font-size:12px}
+.overview dd{margin:0;overflow-wrap:anywhere;color:var(--ink)}
+.overview dd[data-empty=true]{color:var(--muted)}
+.overview dd[data-tone=error]{color:var(--err);font-weight:500}
+.overview dd[data-tone=done]{color:var(--accent);font-weight:500}
+@media(min-width:620px){
+  body[data-mode=fullscreen] .overview,body[data-expanded=true] .overview{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:8px 12px}
+  body[data-mode=fullscreen] .overview div,body[data-expanded=true] .overview div{grid-template-columns:1fr;gap:2px}
+  body[data-mode=fullscreen] .overview div:not(:first-child),body[data-expanded=true] .overview div:not(:first-child){border-left:1px solid var(--line);padding-left:10px}
+}
+nav.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:11px;min-height:32px}
+main button{font:inherit;font-size:12px;line-height:1.35;border:1px solid var(--line);border-radius:7px;min-height:32px;padding:6px 12px;background:transparent;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px}
+main button:hover:not(:disabled):not([aria-disabled=true]){background:var(--soft-hover)}
+main button.primary{background:var(--soft);font-weight:500;border-color:var(--line)}
+main button.quiet{border-color:transparent;color:var(--muted);padding:6px 9px}
+main button.quiet:hover:not(:disabled):not([aria-disabled=true]){color:var(--ink);background:var(--soft)}
+body[data-mode=fullscreen] main #inline{border-color:var(--line);color:var(--ink);background:var(--soft);padding:6px 11px}
+main #refresh{margin-left:auto}
+main button:disabled,main button[aria-disabled=true]{opacity:.46;cursor:default}
+main button:focus-visible,summary:focus-visible,a:focus-visible,pre:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+#notice{font-size:12px;color:var(--muted);margin:0;line-height:1.4}
+#notice[data-tone=error]{color:var(--err)}
+#notice:empty{display:none}
+nav.tabs{position:relative;display:flex;gap:20px;margin:14px 0 0;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs:after{content:"";position:absolute;bottom:0;left:0;height:2px;width:var(--tab-w,28px);transform:translateX(var(--tab-x,0px));background:var(--ink);border-radius:1px;pointer-events:none}
+.tabs button{border:0;border-radius:0;padding:8px 2px;min-height:34px;color:var(--muted);position:relative;white-space:nowrap;flex:none;background:transparent!important}
+.tabs button[aria-selected=true]{color:var(--ink);font-weight:600}
+section#content{padding:14px 0 4px;overflow-wrap:anywhere}
+.callout{font-size:12px;line-height:1.55;padding:8px 11px;border-radius:6px;background:var(--soft);border-left:2.5px solid var(--warn);margin:0 0 12px;color:var(--ink)}
+.callout.error{border-left-color:var(--err);background:var(--err-soft)}
+.callout.done{border-left-color:var(--accent);background:var(--accent-soft)}
+.callout.pending{border-left-color:var(--pending);background:var(--pending-soft)}
+.prose{line-height:1.72;font-size:13.5px}
+.prose p{margin:0 0 10px}
+.prose ul,.prose ol{padding-left:20px;margin:6px 0 12px}
+.prose li{margin:4px 0}
+.prose code{font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:4px;padding:1px 5px}
+.prose pre,pre.raw{font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border:1px solid var(--line);padding:10px 12px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;margin:6px 0}
+.prose.is-clamped{max-height:240px;overflow:hidden;position:relative}
+.prose.is-clamped:after{content:"";position:absolute;left:0;right:0;bottom:0;height:52px;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none}
+.prose-toggle{margin:4px 0 10px;border-color:var(--line)!important;color:var(--ink)!important;background:var(--soft)!important;font-size:12px}
+.prose table{border-collapse:collapse;font-size:12px;display:block;max-width:100%;overflow:auto;margin:8px 0}
+.prose td,.prose th{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:7px 10px;min-width:84px}
+.muted,.empty{color:var(--muted);font-size:12.5px}
+.empty{padding:4px 0 8px;margin:0}
+.facts{display:grid;grid-template-columns:84px minmax(0,1fr);gap:6px 12px;font-size:12px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;overflow-wrap:anywhere}
+.steps{list-style:none;padding:0;margin:4px 0 0}
+.steps li{position:relative;padding:0 0 16px 22px;font-size:13px}
+.steps li:before{content:"";position:absolute;left:2px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--line);box-sizing:border-box}
+.steps li.done:before{background:var(--accent)}
+.steps li.current:before{background:var(--warn)}
+.steps li.pending:before{background:transparent;border:1.75px solid var(--pending)}
+.steps li.error:before{background:var(--err)}
+.steps li:not(:last-child):after{content:"";position:absolute;left:5px;top:17px;bottom:2px;width:1px;background:var(--line)}
+.steps span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.review-result{font-weight:600;font-size:14px;margin:4px 0 8px}
+.review-result[data-tone=done]{color:var(--accent)}
+.review-result[data-tone=error]{color:var(--err)}
+.criteria{margin:6px 0 14px;padding-left:19px;font-size:13px}
+.criteria li{margin:4px 0}
+details{margin-top:12px}
+summary{font-size:12px;color:var(--muted);cursor:pointer;user-select:none}
+summary:hover{color:var(--ink)}
+footer{border-top:1px solid var(--line);margin-top:16px;padding-top:11px;color:var(--muted);font-size:12px}
+footer details{margin:0}
+footer details details{margin-top:10px}
+footer dl{margin:10px 0}
+.fallback{margin-top:8px;display:grid;gap:6px}
+a{color:inherit;text-underline-offset:3px}
+input{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--soft);color:var(--ink);margin:4px 0;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+#choose{margin-top:12px;display:grid;gap:6px}
+#viewer[hidden],[hidden]{display:none!important}
+body[data-mode=inline]:not([data-expanded=true]) #viewer{display:none}
+body[data-mode=inline]:not([data-expanded=true]):not([data-attention=true]) footer{display:none}
+body[data-mode=inline][data-expanded=true][data-active-tab=submission] #summary,body[data-mode=fullscreen][data-active-tab=submission] #summary{display:none}
+body[data-mode=inline] main #inline{display:none}
+body[data-mode=fullscreen] main #open,body[data-mode=fullscreen] main #local{display:none}
+.live-activity{margin:12px 0 4px;padding-top:10px;border-top:1px solid var(--line)}
+.live-activity pre{max-height:200px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.activity-events{padding-left:20px;font-size:12px;color:var(--muted);margin:6px 0}
+.activity-events li{margin:3px 0;padding:2px 4px;border-radius:4px}
+@keyframes card-enter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes tab-fade{from{opacity:.55;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}
+@keyframes event-highlight{from{background:var(--warn-soft);opacity:.5}to{background:transparent;opacity:1}}
+@media(prefers-reduced-motion:no-preference){
+  main button{transition:transform 80ms cubic-bezier(.2,0,0,1),background-color 140ms ease,border-color 140ms ease,color 140ms ease}
+  main button:active:not(:disabled):not([aria-disabled=true]){transform:scale(.97)}
+  nav.tabs[data-slide=true]:after{transition:transform 180ms cubic-bezier(.22,1,.36,1),width 180ms cubic-bezier(.22,1,.36,1)}
+  body[data-ready=true] main{animation:card-enter 180ms cubic-bezier(.22,1,.36,1) 1}
+  section#content[data-switching=true]{animation:tab-fade 140ms ease-out 1}
+  .activity-events li.is-new{animation:event-highlight 360ms ease-out 1}
+}
+@media(prefers-reduced-motion:reduce){
+  *,:before,:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
+@media(max-width:440px){
+  main,body[data-mode=fullscreen] main{padding:14px}
+  main button{min-height:36px;padding:6px 11px}
+  #choose-job{font-size:16px}
+  h1{font-size:16px}
+  .overview{padding:9px 10px}
+  .overview div{grid-template-columns:36px minmax(0,1fr);gap:6px}
+  nav.tabs{gap:16px}
+  .facts{grid-template-columns:72px minmax(0,1fr)}
+}
+</style></head><body data-mode="inline" data-expanded="false"><main>
+<header><span class="brand"><span class="brand-mark" aria-hidden="true">✦</span> Gemini Bridge <span class="brand-sub">· 协作任务</span></span><span id="status" role="status" data-tone="neutral">读取中</span></header>
+<h1 id="title">正在读取任务</h1>
+<div class="model-meta" aria-label="模型与思考设置" hidden><span id="model"></span><span id="effort" hidden></span></div>
+<p id="summary"></p>
+<div class="toolbar"><p id="meta" hidden></p></div>
+<dl class="overview"><div><dt>进展</dt><dd id="progress-line">正在读取已有记录</dd></div><div><dt>结果</dt><dd id="delivery-line" data-empty="true">等待读取</dd></div><div><dt>检查</dt><dd id="review-line" data-empty="true">等待读取</dd></div></dl>
+<form id="choose" hidden><label for="choose-job">已有任务编号</label><input id="choose-job" required pattern="[A-Za-z0-9-]{1,100}" placeholder="粘贴已有任务编号"><button type="submit">查看任务</button></form>
+<nav class="actions"><button id="open" class="primary" disabled>查看详情 ›</button><button id="inline" class="quiet" disabled>← 收起详情</button><button id="local" class="quiet" aria-expanded="false" disabled>展开预览</button><span id="notice" role="status" aria-live="polite"></span><button id="refresh" class="quiet" title="只读同步最新记录，不触发模型" disabled>刷新</button></nav>
+<div id="viewer" hidden><nav class="tabs" role="tablist" aria-label="任务详情"><button role="tab" id="tab-submission" data-tab="submission" aria-controls="content" aria-selected="true" tabindex="0">任务</button><button role="tab" id="tab-progress" data-tab="progress" aria-controls="content" aria-selected="false" tabindex="-1">进展</button><button role="tab" id="tab-delivery" data-tab="delivery" aria-controls="content" aria-selected="false" tabindex="-1">结果</button><button role="tab" id="tab-review" data-tab="review" aria-controls="content" aria-selected="false" tabindex="-1">检查</button></nav><section role="tabpanel" id="content" aria-labelledby="tab-submission"></section></div>
+<footer><details data-details-key="runtime-footer"><summary>运行信息与原始记录</summary><dl id="runtime" class="facts"></dl><div class="fallback"><a id="link" target="_blank" rel="noopener noreferrer">在浏览器打开完整记录 ↗</a></div><details data-details-key="raw-record"><summary>原始记录与本地链接</summary><input id="url" readonly aria-label="完整记录链接"><pre id="raw" class="raw" tabindex="0"></pre></details></details></footer>
+</main><script>__PANEL_SCRIPT__</script></body></html>

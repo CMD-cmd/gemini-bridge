@@ -1,0 +1,463 @@
+{
+  "long_text_bytes": 64000,
+  "kind_complexity": {
+    "copy": "standard",
+    "english": "standard",
+    "extract": "routine",
+    "code-map": "routine",
+    "visual": "standard",
+    "prototype": "standard",
+    "image": "complex"
+  },
+  "preferences": {
+    "routine": [
+      {
+        "family": "flash",
+        "efforts": [
+          "medium",
+          "high"
+        ]
+      }
+    ],
+    "standard": [
+      {
+        "family": "flash",
+        "efforts": [
+          "medium",
+          "high"
+        ]
+      }
+    ],
+    "complex": [
+      {
+        "family": "flash",
+        "efforts": [
+          "high",
+          "medium"
+        ]
+      }
+    ]
+  },
+  "timeouts": {
+    "routine": 180,
+    "standard": 300,
+    "complex": 600
+  },
+  "specialist_budget": {
+    "per_task": 1,
+    "per_day": 1,
+    "rolling_days": 7,
+    "max_calls": 3,
+    "max_high_calls": 1,
+    "max_units": 6,
+    "effort_units": {
+      "low": 1,
+      "medium": 2,
+      "high": 3
+    },
+    "limits_enabled": false
+  },
+  "specialist_routes": {
+    "tone_polish": {
+      "family": "reasoning",
+      "routing_role": "scarce_specialist",
+      "effort": "low",
+      "allowed_kinds": [
+        "copy",
+        "english"
+      ],
+      "max_input_bytes": null,
+      "target_output_chars": null,
+      "flash_complexity": "routine"
+    },
+    "important_communication": {
+      "family": "reasoning",
+      "routing_role": "scarce_specialist",
+      "effort": "medium",
+      "allowed_kinds": [
+        "copy",
+        "english"
+      ],
+      "max_input_bytes": null,
+      "target_output_chars": null,
+      "flash_complexity": "standard"
+    },
+    "sensitive_communication": {
+      "family": "reasoning",
+      "routing_role": "scarce_specialist",
+      "effort": "high",
+      "allowed_kinds": [
+        "copy",
+        "english"
+      ],
+      "max_input_bytes": null,
+      "target_output_chars": null,
+      "flash_complexity": "complex"
+    },
+    "key_copy": {
+      "family": "reasoning",
+      "routing_role": "scarce_specialist",
+      "effort": "medium",
+      "allowed_kinds": [
+        "copy",
+        "english"
+      ],
+      "max_input_bytes": null,
+      "target_output_chars": null,
+      "flash_complexity": "standard"
+    },
+    "technical_second_opinion": {
+      "family": "reasoning",
+      "routing_role": "scarce_specialist",
+      "effort": "medium",
+      "allowed_kinds": [
+        "code-map",
+        "prototype"
+      ],
+      "max_input_bytes": null,
+      "target_output_chars": null,
+      "flash_complexity": "standard"
+    },
+    "technical_deep_review": {
+      "family": "reasoning",
+      "routing_role": "scarce_specialist",
+      "effort": "high",
+      "allowed_kinds": [
+        "code-map"
+      ],
+      "max_input_bytes": null,
+      "target_output_chars": null,
+      "flash_complexity": "complex"
+    },
+    "general": {
+      "family": "reasoning",
+      "routing_role": "scarce_specialist",
+      "effort": "medium",
+      "allowed_kinds": [
+        "copy",
+        "english",
+        "extract",
+        "code-map",
+        "visual",
+        "prototype"
+      ],
+      "max_input_bytes": null,
+      "target_output_chars": null,
+      "flash_complexity": "standard"
+    }
+  },
+  "waiting": {
+    "low": {
+      "max_seconds": 600,
+      "quiet_notice_seconds": 90,
+      "mode": "activity",
+      "activity_grace_seconds": 120,
+      "quiet_grace_seconds": 120
+    },
+    "high": {
+      "effort_seconds": {
+        "low": 600,
+        "medium": 900,
+        "high": 1200
+      },
+      "max_seconds": 1800,
+      "quiet_notice_seconds": {
+        "low": 180,
+        "medium": 300,
+        "high": 420
+      },
+      "mode": "activity",
+      "activity_grace_seconds": 300,
+      "quiet_grace_seconds": 300
+    }
+  },
+  "access": {
+    "standing_high_tier": false,
+    "default_max_jobs": 0,
+    "scope_ttl_seconds": null,
+    "require_chat_opt_in": true
+  },
+  "general_preferences": {
+    "extract": {
+      "routine": [
+        {
+          "family": "flash",
+          "efforts": [
+            "medium",
+            "high"
+          ]
+        }
+      ],
+      "standard": [
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ],
+      "complex": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ]
+    },
+    "code-map": {
+      "routine": [
+        {
+          "family": "flash",
+          "efforts": [
+            "medium",
+            "high"
+          ]
+        }
+      ],
+      "standard": [
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ],
+      "complex": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ]
+    },
+    "copy": {
+      "routine": [
+        {
+          "family": "flash",
+          "efforts": [
+            "medium",
+            "high"
+          ]
+        }
+      ],
+      "standard": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "medium",
+            "high",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ],
+      "complex": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ]
+    },
+    "english": {
+      "routine": [
+        {
+          "family": "flash",
+          "efforts": [
+            "medium",
+            "high"
+          ]
+        }
+      ],
+      "standard": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "medium",
+            "high",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ],
+      "complex": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ]
+    },
+    "visual": {
+      "routine": [
+        {
+          "family": "flash",
+          "efforts": [
+            "medium",
+            "high"
+          ]
+        }
+      ],
+      "standard": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "medium",
+            "high",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ],
+      "complex": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ]
+    },
+    "prototype": {
+      "routine": [
+        {
+          "family": "flash",
+          "efforts": [
+            "medium",
+            "high"
+          ]
+        }
+      ],
+      "standard": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "medium",
+            "high",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ],
+      "complex": [
+        {
+          "family": "reasoning",
+          "efforts": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        {
+          "family": "flash",
+          "efforts": [
+            "high",
+            "medium"
+          ]
+        }
+      ]
+    },
+    "image": {
+      "routine": [
+        {
+          "family": "flash",
+          "efforts": [
+            "medium",
+            "high"
+          ]
+        }
+      ],
+      "standard": [
+        {
+          "family": "flash",
+          "efforts": [
+            "high"
+          ]
+        }
+      ],
+      "complex": [
+        {
+          "family": "flash",
+          "efforts": [
+            "high"
+          ]
+        }
+      ]
+    }
+  }
+}

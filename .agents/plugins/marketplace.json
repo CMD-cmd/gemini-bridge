@@ -1,0 +1,10 @@
+{
+  "name": "gemini-bridge-local",
+  "interface": {"displayName": "Gemini Bridge 本地预览"},
+  "plugins": [{
+    "name": "gemini-bridge-local",
+    "source": {"source": "local", "path": "./plugins/gemini-bridge-local"},
+    "policy": {"installation": "AVAILABLE", "authentication": "ON_USE"},
+    "category": "Productivity"
+  }]
+}

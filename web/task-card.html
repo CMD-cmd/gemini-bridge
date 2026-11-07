@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gemini Bridge · 任务卡片</title>
+<style>
+:root,:root[data-theme=light]{color-scheme:light;--bg:var(--color-background-primary,#ffffff);--ink:var(--color-text-primary,#1f1f1e);--muted:var(--color-text-secondary,#6e6e6a);--line:var(--color-border-primary,#e6e5e1);--soft:var(--color-background-secondary,#f6f5f2);--soft-hover:#efeee9;--accent:#3d7a5a;--accent-soft:rgba(61,122,90,.1);--warn:#9a7432;--warn-soft:rgba(154,116,50,.12);--pending:#52656f;--pending-soft:rgba(82,101,111,.1);--err:#b34e4e;--err-soft:rgba(179,78,78,.1);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root[data-theme=dark]{color-scheme:dark;--bg:var(--color-background-primary,#1e1e1e);--ink:var(--color-text-primary,#ececeb);--muted:var(--color-text-secondary,#9e9e9a);--line:var(--color-border-primary,#343432);--soft:var(--color-background-secondary,#272725);--soft-hover:#31312e;--accent:#74b08e;--accent-soft:rgba(116,176,142,.15);--warn:#d1a75c;--warn-soft:rgba(209,167,92,.15);--pending:#94aab6;--pending-soft:rgba(148,170,182,.15);--err:#de7d7d;--err-soft:rgba(222,125,125,.15)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:var(--color-background-primary,#1e1e1e);--ink:var(--color-text-primary,#ececeb);--muted:var(--color-text-secondary,#9e9e9a);--line:var(--color-border-primary,#343432);--soft:var(--color-background-secondary,#272725);--soft-hover:#31312e;--accent:#74b08e;--accent-soft:rgba(116,176,142,.15);--warn:#d1a75c;--warn-soft:rgba(209,167,92,.15);--pending:#94aab6;--pending-soft:rgba(148,170,182,.15);--err:#de7d7d;--err-soft:rgba(222,125,125,.15)}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink)}
+article{padding:16px 18px;max-width:800px;margin:0 auto}
+article header{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+.mark{width:18px;height:18px;display:grid;place-items:center;border:1px solid var(--line);background:var(--soft);border-radius:5px;color:var(--ink);font-size:11px}
+.brand-name{font-weight:500;color:var(--ink)}
+.status{margin-left:auto;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;font-weight:500;padding:3px 9px 3px 8px;border-radius:999px;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.status:before{content:"";height:7px;width:7px;border-radius:50%;background:var(--muted);box-sizing:border-box}
+.status.running{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.status.running:before{background:var(--warn)}
+.status.pending{background:var(--pending-soft);color:var(--pending);border-color:transparent}
+.status.pending:before{background:transparent;border:1.75px solid var(--pending)}
+.status.accepted{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.status.accepted:before{background:var(--accent)}
+.status.failed{background:var(--err-soft);color:var(--err);border-color:transparent}
+.status.failed:before{background:var(--err)}
+h1{font-size:17px;line-height:1.4;font-weight:600;letter-spacing:-.2px;margin:10px 0 4px;overflow-wrap:anywhere}
+p{margin:0;color:var(--muted);font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+#description[data-tone=error]{color:var(--err);font-weight:500}
+.model-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 9px;margin:6px 0 9px;font-size:12px;line-height:1.5}
+.model-meta #model{min-width:0;overflow-wrap:anywhere;color:var(--ink);font-weight:600}
+.model-meta #effort{flex:none;padding:1px 7px;border:1px solid var(--line);border-radius:5px;background:var(--soft);color:var(--muted);font-size:11px}
+.notice{padding:8px 11px;background:var(--soft);border-left:2.5px solid var(--warn);border-radius:6px;margin:10px 0 0;font-size:12.5px;color:var(--ink)}
+.notice[data-tone=error]{border-left-color:var(--err);background:var(--err-soft);color:var(--err)}
+.review{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px;padding:8px 11px;background:var(--soft);border:1px solid var(--line);border-radius:8px;font-size:12.5px;color:var(--muted)}
+.review strong{font-weight:600;color:var(--ink)}
+.review strong[data-tone=done]{color:var(--accent)}
+.review strong[data-tone=error]{color:var(--err)}
+article nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+article button{font:inherit;font-size:12px;line-height:1.35;min-height:32px;padding:6px 12px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--ink);cursor:pointer;white-space:nowrap}
+article button:hover:not(:disabled){background:var(--soft-hover)}
+article button.primary{background:var(--soft);font-weight:500}
+article #refresh{margin-left:auto}
+article button:disabled{opacity:.45;cursor:default}
+article button:focus-visible,summary:focus-visible,a:focus-visible,pre:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+details{margin-top:12px}
+summary{cursor:pointer;font-size:12px;color:var(--muted);user-select:none}
+summary:hover{color:var(--ink)}
+pre{font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border:1px solid var(--line);padding:10px 12px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto;color:var(--ink);margin:6px 0}
+.footnote{font-size:11.5px;margin-top:8px;color:var(--muted)}
+#error{color:var(--err);margin-top:10px;font-size:12px}
+[hidden]{display:none!important}
+#task-details{margin-top:12px;padding:12px 14px;background:var(--soft);border:1px solid var(--line);border-radius:9px}
+#task-details pre{background:var(--bg)}
+h2,h3{font-size:12.5px;font-weight:600;margin:0 0 8px;color:var(--ink)}
+h3{margin-top:14px}
+#delivery-files,#live-activity{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+#delivery-files h3,#live-activity h3{margin-top:0}
+#live-activity ol{padding-left:20px;margin:6px 0;font-size:12px;color:var(--muted)}
+#live-activity li{margin:3px 0;padding:2px 4px;border-radius:4px}
+dl{display:grid;grid-template-columns:76px minmax(0,1fr);gap:5px 12px;font-size:12px;margin:0}
+dt{color:var(--muted)}
+dd{margin:0;overflow-wrap:anywhere;color:var(--ink)}
+#review-note{max-height:200px;margin:0}
+#criteria{font-size:12px;padding-left:18px;color:var(--muted);margin:6px 0 0}
+#criteria li{margin:3px 0}
+#full-page{border-top:1px solid var(--line);padding-top:10px;margin-top:12px}
+#full-link{color:var(--ink);font-size:12.5px;font-weight:500}
+#full-page label{display:block}
+#page-url{width:100%;margin-top:5px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+@keyframes card-enter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes event-highlight{from{background:var(--warn-soft);opacity:.5}to{background:transparent;opacity:1}}
+@media(prefers-reduced-motion:no-preference){
+  article button{transition:transform 80ms cubic-bezier(.2,0,0,1),background-color 140ms ease,border-color 140ms ease}
+  article button:active:not(:disabled){transform:scale(.97)}
+  body[data-ready=true] article{animation:card-enter 180ms cubic-bezier(.22,1,.36,1) 1}
+  #live-activity li.is-new{animation:event-highlight 360ms ease-out 1}
+}
+@media(prefers-reduced-motion:reduce){
+  *,:before,:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
+@media(max-width:440px){
+  article{padding:14px}
+  h1{font-size:16px}
+  article nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  article button{min-height:36px;width:100%;justify-content:center}
+  article #refresh{margin-left:0}
+}
+</style></head><body>
+<article aria-live="polite"><header><span class="mark" aria-hidden="true">✦</span><span class="brand-name">Gemini Bridge</span><span id="status" class="status">正在读取</span></header>
+<h1 id="title">任务交付</h1><div class="model-meta" aria-label="模型与思考设置" hidden><span id="model"></span><span id="effort" hidden></span></div><p id="description">等待宿主传入任务信息。</p>
+<p id="notice" class="notice" hidden></p><div class="review"><span>Codex 验收</span><strong id="review">待 Codex 核对</strong></div>
+<nav><button id="details" class="primary" disabled title="请求 Codex 在右侧打开完整页面">查看详情 ›</button><button id="inline-details" disabled aria-expanded="false" aria-controls="task-details">卡片内详情</button><button id="expand" disabled>展开交付</button><button id="refresh" disabled>刷新状态</button></nav>
+<p id="action-status" class="footnote" role="status" hidden></p>
+<section id="task-details" hidden aria-label="任务详情">
+<h2>任务详情</h2><dl id="detail-fields"></dl>
+<h3>验收记录</h3><pre id="review-note" tabindex="0"></pre><ul id="criteria"></ul>
+<div id="full-page" hidden><a id="full-link" target="_blank" rel="noopener noreferrer">打开完整页面 ↗</a><label class="footnote" for="page-url">如果页面未打开，可复制此链接到浏览器：</label><input id="page-url" readonly aria-label="完整页面链接"></div>
+</section>
+<details id="delivery" data-details-key="delivery" hidden><summary>交付原文</summary><pre id="response" tabindex="0"></pre><p id="truncated" class="footnote" hidden>这里显示部分内容，完整交付请查看详情。</p></details>
+<p id="error" role="status" hidden></p></article>
+<script>const COPY=__CARD_COPY__;
+__CARD_SCRIPT__
+</script></body></html>

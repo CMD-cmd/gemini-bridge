@@ -1,0 +1,43 @@
+{
+  "status": "qualified",
+  "max_children": 4,
+  "project_tools_status": "qualified",
+  "scope": "one native child level; same selected parent model verified per child; isolated builder output; bounded concurrency 1..4",
+  "tested_model": "gemini-3.8-flash-high",
+  "tested_effort": "high",
+  "cancellation_evidence": "local CLI stopped and task capability revoked; provider child cancellation acknowledgement unavailable",
+  "remote_termination_proven": false,
+  "project_tools_transport": "acp",
+  "acp_workspace_status": "qualified",
+  "default_acp_status": "qualified",
+  "qualified_roles": [
+    "reader",
+    "builder",
+    "reviewer"
+  ],
+  "qualified_project_tools": [
+    "file_manifest",
+    "table_profile",
+    "document_extract",
+    "literature_search",
+    "public_page",
+    "pubmed_search"
+  ],
+  "qualified_capacity_modes": [
+    "lifetime",
+    "concurrent"
+  ],
+  "steering_status": "qualified",
+  "recovery_status": "qualified",
+  "preview_actions_status": "qualified",
+  "research_status": "qualified",
+  "role_live_test_max_concurrent": 1,
+  "source_availability": {
+    "crossref": "actual_search_and_doi_success",
+    "pmc": "actual_fulltext_success_then_verification_page; authorized_snapshot_used",
+    "pubmed": "parser_and_refusal_verified; current_source_HTTP500",
+    "europe_pmc": "parser_and_refusal_verified; current_source_HTTP503"
+  },
+  "result_read_status": "qualified",
+  "qualification_scope": "Maintainer-tested feature set; local logs are not distributed. Recheck compatibility after CLI or platform changes."
+}
