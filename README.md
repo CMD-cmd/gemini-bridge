@@ -30,6 +30,13 @@ Gemini Bridge 用于在 macOS 本机将 Codex 与官方 Antigravity CLI（`agy`�
 
 ---
 
+## 输入框里的入口
+
+- `@Gemini Bridge`：彩色 Gemini 图标的插件入口。
+- `/gemini`：主 Skill 的显示名为“Gemini 协作流程”，负责交接和验收。当前桌面端的技能选择器可能仍使用统一的方块图标。
+
+安装主 Skill 时，安装器会隐藏插件附带的冗余“查看任务”Skill；原生卡片和详情工具保持可用。已安装用户可运行 `python3 script/dedupe_skills.py --apply`。详见[输入框显示说明](docs/SKILL_PICKER.md)。
+
 ## 核心能力概览
 
 - **显式聊天授权（Per-Chat Opt-in）**：默认关闭。必须在当前聊天中明确允许使用 Gemini 或主动调用 Skill/插件后才启用分流；其他聊天的授权或账号订阅状态不会自动跨聊天生效。

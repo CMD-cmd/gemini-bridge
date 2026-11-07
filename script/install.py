@@ -41,6 +41,7 @@ def main(argv=None):
     parser.add_argument('--setup', action='store_true')
     parser.add_argument('--skip-dependencies', action='store_true', help='Use an existing environment')
     parser.add_argument('--install-skills', action='store_true')
+    parser.add_argument('--keep-view-shortcut', action='store_true', help='Keep the optional separate plugin viewing Skill in the picker')
     parser.add_argument('--codex-home', type=Path, default=Path(os.environ.get('CODEX_HOME') or Path.home()/'.codex'))
     parser.add_argument('--adopt-example-policy', action='store_true', help='Explicitly adopt the dated routing example')
     parser.add_argument('--subscription-exceptions', action='store_true', help='Opt into the example member-route policy exceptions')
@@ -92,6 +93,9 @@ def main(argv=None):
         write_new(ROOT/'routing/policy.json', policy)
     if args.install_skills:
         install_skill(ROOT/'skills/gemini-bridge', args.codex_home/'skills/gemini-bridge')
+        if not args.keep_view_shortcut:
+            subprocess.run([sys.executable, str(Path(__file__).with_name('dedupe_skills.py')),
+                            '--apply', '--codex-home', str(args.codex_home)], check=True)
     print('Local setup complete. Sign in through the official CLI, then run the connect helper. No model generation was started.')
     return 0
 

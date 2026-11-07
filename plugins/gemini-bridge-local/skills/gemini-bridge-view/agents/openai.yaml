@@ -1,5 +1,5 @@
 interface:
-  display_name: "Gemini Bridge"
+  display_name: "Gemini 任务记录"
   short_description: "查看 Gemini 任务的实时进展、交付内容及 Codex 检查记录"
   icon_small: "./assets/gemini.png"
   icon_large: "./assets/gemini.svg"

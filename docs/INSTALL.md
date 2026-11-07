@@ -94,7 +94,8 @@ python3 script/install.py --setup \
 | `--cli PATH` | 指定已安装的官方 `agy` 可执行文件路径；未指定时依次尝试 `shutil.which('agy')` 与 `<仓库根目录>/bin/agy`。 |
 | `--model ID` | 必填（配合 `--setup`）：来自你本机 `agy models` 输出的精确模型标识符。 |
 | `--effort {low,medium,high,xhigh,max}` | 必填（配合 `--setup`）：默认推理强度档位。注意：若配合 `--adopt-example-policy`，`<model>/<effort>` 组合必须存在于 `routing/policy.example.json` 的 `external_models` 中。 |
-| `--install-skills` | 将 `skills/gemini-bridge` 复制到 `<codex-home>/skills/gemini-bridge`，将模板中的 `<BRIDGE_ROOT>` 替换为当前仓库绝对路径，并写入 `runtime-location.json`（权限 `0600`）。 |
+| `--install-skills` | 安装主 Skill、渲染运行路径，并备份后追加只针对冗余查看 Skill 的隐藏设置。主流程和插件保持启用。 |
+| `--keep-view-shortcut` | 配合 `--install-skills` 使用，保留独立的查看 Skill，不添加默认去重设置。 |
 | `--adopt-example-policy` | 显式采用 `routing/policy.example.json` 生成本地 `routing/policy.json`（权限 `0600`）。 |
 | `--subscription-exceptions` | 必须与 `--adopt-example-policy` 同时使用。将生成的 `routing/policy.json` 中的 `external_subscription_exception.enabled` 与 `external_specialist_exception.enabled` 设为 `true`，并记录采用时间与说明（仍需每次聊天明确授权）。 |
 | `--skip-dependencies` | 跳过 `.venv-http` 虚拟环境创建与 `pip install -r requirements-http.lock`（适用于已提前准备好 `.venv-http` 的情况）。 |
@@ -165,3 +166,18 @@ python3 script/connect_codex.py --write-config
 公开版会保留有效的本地连接身份，通常不必重写 Codex 配置。若 `.runtime` 被删除，原连接凭据同时丢失，需要重新配置该连接。不要分享这个目录。
 
 更新 Python 服务源码后，等待任务空闲，再重启本仓库的后台和 HTTP 服务；不要终止其他聊天拥有的进程。示例模型策略不会自动覆盖已经采用的 `routing/policy.json`，需要自行审阅与合并。
+
+## 输入框入口去重
+
+安装器在 `--install-skills` 时默认调用 `script/dedupe_skills.py --apply`：先确认主流程已安装并启用，然后用 Codex 官方支持的 `[[skills.config]]` 名称选择器隐藏 `gemini-bridge-local:gemini-bridge-view`。它只追加这条设置，保留其他 Skill、插件、MCP 连接和凭据，并在改动前保存权限为 `0600` 的配置备份。
+
+旧版已安装用户可在仓库目录运行：
+
+```sh
+python3 script/dedupe_skills.py
+python3 script/dedupe_skills.py --apply
+```
+
+第一条仅检查，第二条保存设置；反复执行不会重复追加同一条设置。仅安装了查看插件、尚无主 Skill 的用户不会被隐藏唯一的查看入口。加 `--codex-home PATH` 可指定配置目录。
+
+技能目录存在客户端缓存。先刷新当前聊天；仍显示旧条目时，在任务空闲后重开客户端以重新加载技能目录。无需因此重连 Bridge MCP。彩色图标用于插件入口；技能菜单是否使用自定义图标由宿主控制，详见[显示说明](SKILL_PICKER.md)。

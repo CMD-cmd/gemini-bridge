@@ -135,5 +135,50 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(saved['pid'], 456)
 
 
+class PickerTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.home = Path(self.temp.name)
+        self.helper = module('dedupe_skills')
+
+    def primary(self):
+        path = self.home/'skills/gemini-bridge/SKILL.md'
+        path.parent.mkdir(parents=True)
+        path.write_text('primary workflow')
+        return path
+
+    def test_check_never_changes_settings(self):
+        self.assertFalse(self.helper.configure(self.home)['changed'])
+        self.assertFalse((self.home/'config.toml').exists())
+
+    def test_no_primary_cannot_hide_only_viewer(self):
+        with self.assertRaises(ValueError):
+            self.helper.configure(self.home, True)
+        self.assertFalse((self.home/'config.toml').exists())
+
+    def test_dedup_keeps_other_settings_and_is_idempotent(self):
+        self.primary()
+        config = self.home/'config.toml'
+        original = '[mcp_servers.existing]\ncommand="keep"\n'
+        config.write_text(original)
+        self.assertTrue(self.helper.configure(self.home, True)['changed'])
+        text = config.read_text()
+        self.assertTrue(text.startswith(original))
+        self.assertIn('name = "gemini-bridge-local:gemini-bridge-view"', text)
+        self.assertFalse(self.helper.configure(self.home, True)['changed'])
+        self.assertEqual(config.read_text(), text)
+        self.assertEqual(config.stat().st_mode & 0o777, 0o600)
+
+    def test_disabled_main_workflow_is_preserved(self):
+        self.primary()
+        config = self.home/'config.toml'
+        original = '[[skills.config]]\nname="gemini-bridge"\nenabled=false\n'
+        config.write_text(original)
+        with self.assertRaises(ValueError):
+            self.helper.configure(self.home, True)
+        self.assertEqual(config.read_text(), original)
+
+
 if __name__ == '__main__':
     unittest.main()

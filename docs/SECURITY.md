@@ -19,7 +19,7 @@ Gemini Bridge 的设计目标是在不交出主机完全控制权、不泄露本
 
 - **每次聊天默认关闭（Per-Chat Opt-in）**：未在当前聊天中获得用户明确授权（或主动调用 `$gemini-bridge` / `@gemini-bridge`）前，任何外部生成请求均被拒绝。授权不跨聊天共享，历史已关闭的 `scope` 不会自动复活或扩权。
 - **只读会话身份核验**：每次启用范围或提交任务前，`routing/resolve.py` 通过只读方式核对 `<codex-home>/state_*.sqlite` 与 `<codex-home>/sessions/` 下的当前会话日志，确认请求来自当前活动回合（Active Turn）且主模型身份与策略匹配。若日志正在轮转或身份不明，拒绝放行。
-- **不污染全局配置**：`script/install.py` 仅在当前仓库目录内写入 `profile.json` 与 `routing/policy.json`，不修改全局 `~/.codex/agent-routing`；`script/connect_codex.py` 在修改 `~/.codex/config.toml` 前会先创建权限为 `0600` 的备份文件，且只追加 `gemini_bridge_http` 小节。
+- **不污染全局配置**：`script/install.py` 在当前仓库内配置运行文件，安装主 Skill 时默认通过 `dedupe_skills.py` 备份后只隐藏冗余的查看 Skill，不修改全局 `~/.codex/agent-routing`；`script/connect_codex.py` 在修改 `~/.codex/config.toml` 前会先创建权限为 `0600` 的备份文件，且只追加 `gemini_bridge_http` 小节。
 
 ---
 
