@@ -61,7 +61,7 @@ python3 script/install.py --check --cli /absolute/path/to/agy
 
 **关键原则**：
 - **出现在 CLI 目录中不代表自动具备分发资格**。如果某个 `model/effort` 组合或当前主模型未在 `routing/policy.json` 中映射，Bridge 会停止派遣并提示先配置策略。
-- 仓库附带的 [`routing/policy.example.json`](../routing/policy.example.json) 是一份**带日期的示例策略**（版本 `2026-10-31.v11`，基于 `2026-09-30` 与 `2026-10-10` / `2026-10-17` 检索的 Artificial Analysis v4.3.2 数据快照），它不是实时排行榜，也不是对你的账户权益证明。
+- 仓库附带的 [`routing/policy.example.json`](../routing/policy.example.json) 是一份**带日期的示例策略**（版本 `2026-11-14.example-model-refresh`，原生基线基于 `2026-09-30` 与 `2026-10-10` / `2026-10-17` 检索的 Artificial Analysis v4.3.2 数据快照），它不是实时排行榜，也不是对你的账户权益证明。
 - 在该示例策略中，会员成本例外（`external_subscription_exception`）与受限专用模型例外（`external_specialist_exception`）默认均为 `"enabled": false`。
 
 ---
@@ -181,3 +181,5 @@ python3 script/dedupe_skills.py --apply
 第一条仅检查，第二条保存设置；反复执行不会重复追加同一条设置。仅安装了查看插件、尚无主 Skill 的用户不会被隐藏唯一的查看入口。加 `--codex-home PATH` 可指定配置目录。
 
 技能目录存在客户端缓存。先刷新当前聊天；仍显示旧条目时，在任务空闲后重开客户端以重新加载技能目录。无需因此重连 Bridge MCP。彩色图标用于插件入口；技能菜单是否使用自定义图标由宿主控制，详见[显示说明](SKILL_PICKER.md)。
+
+模型更新补充：本次以 CLI1.5.8 验证 Carbon 与 Hydrogen；请按官方 CLI 的更新方式维护版本。新型号精确映射及各变体的实测范围见[模型更新](MODEL_UPDATES.md)。

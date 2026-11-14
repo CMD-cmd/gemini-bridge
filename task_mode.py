@@ -173,7 +173,12 @@ def model_usage(profile):
     tier = record.get('usage_tier', 'high')
     if tier not in ('low', 'high'):
         tier = 'high'
-    return tier, record.get('specialist_only') is True
+    specialist = record.get('specialist_only') is True
+    if specialist:
+        expected = policy.get('external_specialist_exception', {}).get('allowed_usage_tiers', {}).get(key, 'high')
+        if expected not in ('low', 'high') or tier != expected:
+            raise ValueError('Specialist model must retain ' + str(expected) + ' usage tier')
+    return tier, specialist
 
 
 class TaskModes:
@@ -252,7 +257,7 @@ class TaskModes:
                          'high_tier_authorization': high_quote,
                          'high_tier_authorization_basis': high_basis,
                          'material_class': material, 'max_jobs': maximum, 'job_ids': [],
-                         'capability_routing_authorized': access['standing_high_tier'],
+                         'capability_routing_authorized': access['standing_high_tier'] or chat_opt_in_quote_valid(authorization),
                          'created_at': time.time(), 'expires_at': (time.time() + access['scope_ttl_seconds'] if access['scope_ttl_seconds'] is not None else None),
                          'initial_decision': decision}
                 if 'workspace' in args:
@@ -358,11 +363,9 @@ class TaskModes:
             if tier not in state.get('allowed_model_tiers', ['low']):
                 raise ValueError('Model tier is outside authorized scope')
             if specialist and purpose == 'general' and not state.get('capability_routing_authorized',False):
-                raise ValueError('Scope predates Ultra general-specialist authorization; retain its original model scope')
-            if specialist and tier != 'high':
-                raise ValueError('Specialist model must retain high usage tier')
-            if (tier == 'high' or specialist) and not high_scope_authorized(state):
-                raise ValueError('High tier requires quoted user permission to use 4 Argon or explicit $gemini-bridge invocation')
+                raise ValueError('Scope predates explicit capability-exception authorization; retain its original model scope')
+            if tier == 'high' and not high_scope_authorized(state):
+                raise ValueError('High tier requires quoted user permission to use Gemini in this chat or explicit $gemini-bridge invocation')
             # Work already accepted by an active submitting turn remains valid
             # when that turn ends while another chat occupies the queue. Read
             # the latest actual context/model and policy again, never defaults.

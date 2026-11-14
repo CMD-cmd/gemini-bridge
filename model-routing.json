@@ -139,7 +139,8 @@
         "extract",
         "code-map",
         "visual",
-        "prototype"
+        "prototype",
+        "image"
       ],
       "max_input_bytes": null,
       "target_output_chars": null,
@@ -152,7 +153,16 @@
       "quiet_notice_seconds": 90,
       "mode": "activity",
       "activity_grace_seconds": 120,
-      "quiet_grace_seconds": 120
+      "quiet_grace_seconds": 120,
+      "effort_overrides": {
+        "xhigh": {
+          "max_seconds": 1800,
+          "default_seconds": 900,
+          "quiet_notice_seconds": 180,
+          "activity_grace_seconds": 180,
+          "quiet_grace_seconds": 180
+        }
+      }
     },
     "high": {
       "effort_seconds": {

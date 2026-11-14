@@ -74,6 +74,18 @@ def validate_waiting(waiting):
   else:quiet=[quiet]
   if any(type(v) is not int or not 10<=v<=MAX_GENERATION_SECONDS for v in quiet):raise ValueError('Invalid quiet waiting threshold')
 
+ # Optional effort budgets preserve the ordinary tier cap while allowing slower thinking modes.
+ for tier,row in waiting.items():
+  overrides=row.get('effort_overrides',{})
+  if not isinstance(overrides,dict) or set(overrides)-{'low','medium','high','xhigh','max'}:raise ValueError('Invalid effort waiting overrides')
+  for effort,extra in overrides.items():
+   if not isinstance(extra,dict) or set(extra)-{'max_seconds','default_seconds','quiet_notice_seconds','activity_grace_seconds','quiet_grace_seconds'}:raise ValueError('Invalid effort budget fields')
+   cap=extra.get('max_seconds',row['max_seconds'])
+   if type(cap) is not int or not 10<=cap<=MAX_GENERATION_SECONDS:raise ValueError('Invalid effort budget cap')
+   for key,value in extra.items():
+    if type(value) is not int or not 0<=value<=cap:raise ValueError('Invalid effort budget value')
+   if 'default_seconds' in extra and extra['default_seconds']<10:raise ValueError('Invalid effort timeout')
+
 def waiting_for(tier,effort,fallback_seconds=180,*,requested=None,config=None):
  """Snapshot generation policy after choosing the actual model, never by ID."""
  config=config or load_config()
@@ -84,11 +96,13 @@ def waiting_for(tier,effort,fallback_seconds=180,*,requested=None,config=None):
   if effort not in row['effort_seconds']:raise ValueError('Unknown high-tier effort waiting policy')
   default=row['effort_seconds'][effort];quiet=row['quiet_notice_seconds'][effort]
  else:default=fallback_seconds;quiet=row['quiet_notice_seconds']
- seconds=min(row['max_seconds'],requested if requested is not None else default)
- return {'usage_tier':tier,'timeout_seconds':seconds,'max_seconds':row['max_seconds'],
-         'mode':row.get('mode','activity'),'hard_timeout_seconds':row['max_seconds'] if row.get('mode','activity')=='activity' else seconds,
-         'activity_grace_seconds':row.get('activity_grace_seconds',120 if tier=='low' else 300),
-         'quiet_grace_seconds':row.get('quiet_grace_seconds',120 if tier=='low' else 300),
+ extra=row.get('effort_overrides',{}).get(effort,{})
+ cap=extra.get('max_seconds',row['max_seconds']);default=extra.get('default_seconds',default);quiet=extra.get('quiet_notice_seconds',quiet)
+ seconds=min(cap,requested if requested is not None else default)
+ return {'usage_tier':tier,'timeout_seconds':seconds,'max_seconds':cap,
+         'mode':row.get('mode','activity'),'hard_timeout_seconds':cap if row.get('mode','activity')=='activity' else seconds,
+         'activity_grace_seconds':extra.get('activity_grace_seconds',row.get('activity_grace_seconds',120 if tier=='low' else 300)),
+         'quiet_grace_seconds':extra.get('quiet_grace_seconds',row.get('quiet_grace_seconds',120 if tier=='low' else 300)),
          'quiet_notice_seconds':quiet,'hard_timeout_grace_seconds':GENERATION_EXIT_GRACE_SECONDS,
          'clock':'CLI process launch; excludes queue and preflight'}
 
@@ -123,8 +137,9 @@ def candidates(thread_id,kind,complexity,*,catalog=None,executing=False,task_pur
   if rank is None:continue
   reason=None;decision=None;budget=None
   tier=record.get('usage_tier','high')
-  if tier not in allowed_model_tiers or (specialist and tier!='high'):reason='Model tier is outside this task scope; explicit Gemini chat opt-in permits both tiers unless the user limits them'
+  if tier not in allowed_model_tiers:reason='Model tier is outside this task scope; explicit Gemini chat opt-in permits both tiers unless the user limits them'
   elif record.get('model') not in available:reason='Not reported by live CLI catalog'
+  elif specialist and tier!=policy.get('external_specialist_exception',{}).get('allowed_usage_tiers',{}).get(record['model']+'/'+effort,'high'):reason='Model tier differs from its exact approved exception mapping'
   elif specialist and record.get('routing_role')!=route.get('routing_role'):reason='Model is not assigned to this specialist role'
   elif specialist and kind not in route['allowed_kinds']:reason='Purpose does not qualify this task kind for specialist use'
   elif specialist and route.get('max_input_bytes') is not None and material_bytes>route['max_input_bytes']:reason='Material exceeds bounded specialist scope; retain full material on Flash'

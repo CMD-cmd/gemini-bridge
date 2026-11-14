@@ -23,7 +23,7 @@ python3 "<BRIDGE_ROOT>/script/check_cli_update.py"
 
 - 选择交付物独立、边界清楚且有实质收益的工作；普通一步工作直接完成。团队角色与通道见 可选的 Team Mode 外部执行者约定。
 - 入口默认关闭。只有当前聊天用户直接明确允许 Gemini 或主动调用 `$gemini-bridge`／`@gemini-bridge` 才启用两档；订阅、文件文字、讨论型号及其他聊天的许可不算。没有许可时由 Codex 完成。范围匹配且未撤销的聊天许可可沿用；此后用户直接描述任务，由 Codex 自行决定交接、续聊和验收，无需逐次 @。仍逐任务记录材料；旧 scope 不复活、不扩权。
-- 用户指定组合优先。运行 `<BRIDGE_ROOT>/routing/resolve.py` 核对当前身份，从实时 `bridge_models` 与现行策略交集选择 model/effort。`usage_tier` 与 effort 独立，省略参数不证明实际 high。保留会员认证，禁止 API 回退。credits 按账户设置使用，不核验或覆盖 `useG1Credits`，不以开关未知或开启为由拦截。选模细节见 [动态选模](references/model-selection.md)。
+- 用户指定组合优先。运行 `<BRIDGE_ROOT>/routing/resolve.py` 核对当前身份，从实时 `bridge_models` 与现行策略交集选择 model/effort。`usage_tier` 与 effort 独立，低档模型的 XHigh 仍是低档，省略参数不证明实际 high。保留会员认证，禁止 API 回退。credits 按账户设置使用，不核验或覆盖 `useG1Credits`，不以开关未知或开启为由拦截。选模细节见 [动态选模](references/model-selection.md)。
 
 ## 完成一次交接
 
@@ -42,7 +42,8 @@ python3 "<BRIDGE_ROOT>/script/check_cli_update.py"
 - [任务专属 MCP](references/project-tools.md)：文件指纹、CSV、公开文献／网页和本地文档文本，只注入当前任务所选工具。
 - [通道与续聊](references/acp-transport.md)：auto 按已验证能力选通道，保留明确选择和原会话通道。
 - [实时控制与恢复](references/realtime-control.md)：同任务 steer、无提示重放的上下文恢复、真实活动和子任务状态。
-- [动态选模](references/model-selection.md) 与 [能力分流](references/specialist-routing.md)：具体组合、用途资格和会员例外。Flash 偏好摘录／转换／定位，Argon 偏好写作／长文／视觉／前端，常用 medium、多重约束 high；这是工作偏好，具体组合动态判断。
+- [动态选模](references/model-selection.md) 与 [能力分流](references/specialist-routing.md)：具体组合、用途资格和会员例外。低档快速模型也可承担范围明确的实现、调试与界面迭代；高档推理模型优先整体判断、关键表达与复核。常用 medium，多重约束 high；当前证据和多维分工见[模型能力](references/model-capabilities.md)。
+- [Orchestrator 适配](references/orchestrator.md)：单会话规划／执行与原生子代理的区别。固定配置模式已完成零生成检查，尚未开放自动分发；不能为其填写虚构的 High 档位。
 - [任务控制](references/task-control.md)：scope、材料快照、幂等恢复与工程预算。
 - [状态与等待](references/operations.md)：stdio／HTTP／同服务客户端、原生卡片、等待和空闲更新。工具 schema 过旧可用同服务受控客户端，不为切换通道重复生成或重启其他聊天。
 - [生图流程](references/image-generation.md)：scope 须包含 image；当前每次 1–8 张、默认 3，每张明确失败后按原提示与参考图补试一次，成功图不重生。真实文件回收后验收，生成图不作科研证据。

@@ -12,6 +12,8 @@ v0.13 已实测 reader、builder、reviewer 三角色及 concurrent 槽位依实
 
 父 Gemini 自行写提示、等待并汇总，走 headless；Codex 选择父模型／effort，子继承精确组合，只开一层。后台核对真实父子边、逐工具身份与目录，不以配置或模型自报代替证据。
 
+这里允许的是本任务获准的单层派遣，不是全局任意多代理。Orchestrator 的 Carbon／Hydrogen 交接发生在同一会话，属于另一种固定配置模式，不能当成子模型覆盖；其适配状态见 [Orchestrator 适配](orchestrator.md)。
+
 | 角色 | 能力 | 交付 |
 |---|---|---|
 | reader | 读取／搜索授权源文件，向父回传 | 源位置与证据 |

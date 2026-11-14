@@ -30,6 +30,8 @@ Gemini Bridge 用于在 macOS 本机将 Codex 与官方 Antigravity CLI（`agy`�
 
 ---
 
+当前模型映射已更新为 **Carbon（高档）与 Hydrogen（低档）**，详见[模型更新与验证范围](docs/MODEL_UPDATES.md)。
+
 ## 输入框里的入口
 
 - `@Gemini Bridge`：彩色 Gemini 图标的插件入口。

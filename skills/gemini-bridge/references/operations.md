@@ -84,6 +84,6 @@ python3 "<BRIDGE_ROOT>/client.py" retry --job-id <原失败任务编号> --threa
 
 ## 规则同步与旧工具说明
 
-实际执行读取共享后台当前配置，普通查看、status/review 和已有任务卡片不需开启生成。账户路线沿用现有登录，不再执行 `/settings` 核验 `useG1Credits=false`，也不检查或覆盖账户 credits 开关。历史任务若报该预检错误，保留原始失败记录；读取状态、刷新或更新 Skill 不会自动重发生成。当前聊天没有明确 Gemini 许可时，两档生成默认关闭；有许可时 authorization 记录用户原话，两档共用，不要求另点名 Argon。Ultra 本地次数与固定时效限制保持取消。若旧聊天工具目录仍写“高档必须额外点名 Argon”或旧次数，先读磁盘现行 Skill 与 bridge_task_mode 的实际 reason，不用旧说明推断不可用。工具元数据更新需刷新对应聊天／MCP 连接；已经能正常调用时无需重连。只刷新该聊天，仍旧再重连 gemini_bridge_http，不重启 Codex 或打断其他聊天。
+实际执行读取共享后台当前配置，普通查看、status/review 和已有任务卡片不需开启生成。账户路线沿用现有登录，不再执行 `/settings` 核验 `useG1Credits=false`，也不检查或覆盖账户 credits 开关。历史任务若报该预检错误，保留原始失败记录；读取状态、刷新或更新 Skill 不会自动重发生成。当前聊天没有明确 Gemini 许可时，两档生成默认关闭；有许可时 authorization 记录用户原话，两档共用，不要求另点名 高档推理模型。Ultra 本地次数与固定时效限制保持取消。若旧聊天工具目录仍写“高档必须额外点名 高档推理模型”或旧次数，先读磁盘现行 Skill 与 bridge_task_mode 的实际 reason，不用旧说明推断不可用。工具元数据更新需刷新对应聊天／MCP 连接；已经能正常调用时无需重连。只刷新该聊天，仍旧再重连 gemini_bridge_http，不重启 Codex 或打断其他聊天。
 
 ACP 执行器断线或缺少终态证据时，先用原 job_id 观察／恢复；未收到文字也不证明远端没有生成，不据 EOF 自动重发。明确的暂时性RPC失败和生成前目录故障仍按最多3次规则处理。

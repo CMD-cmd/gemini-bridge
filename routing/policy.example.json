@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-31.v11",
+  "version": "2026-11-14.example-model-refresh",
   "basis": "AA v4.3.2 exact raw scores and task costs; empirical dual ceiling, not billing enforcement",
   "index_version": "v4.3.2",
   "cost_basis": "AA Intelligence Index USD per task",
@@ -570,6 +570,249 @@
       "specialist_only": true,
       "routing_role": "scarce_specialist",
       "usage_tier": "high"
+    },
+    "gemini-4-carbon-low/low": {
+      "model": "gemini-4-carbon-low",
+      "reasoning_effort": "low",
+      "label": "Gemini 4 Carbon (Low)",
+      "score": null,
+      "cost_usd_per_task": null,
+      "time_seconds_per_task": null,
+      "index_version": null,
+      "routing_family": "reasoning",
+      "routing_priority": 200,
+      "automatic_eligible": true,
+      "allowed_kinds": [
+        "copy",
+        "english",
+        "extract",
+        "code-map",
+        "visual",
+        "prototype"
+      ],
+      "source_url": "https://deepmind.google/models/model-cards/gemini-4-carbon/",
+      "retrieved_at": "2026-11-14T02:18:01.214858+00:00",
+      "qualification": "Exact catalog, effort, usage-tier and routing policy verified; this exact variant has not received a live generation probe in this refresh.",
+      "account_availability_source": "Official installed CLI account catalog observed 2026-11-14; availability does not prove remaining quota.",
+      "specialist_only": true,
+      "routing_role": "scarce_specialist",
+      "usage_tier": "high",
+      "capability_basis": "User selected Carbon to replace Argon as the preferred high tier; Google model card; bounded explicit exact-model exception.",
+      "public_benchmark_observation": null
+    },
+    "gemini-4-carbon-medium/medium": {
+      "model": "gemini-4-carbon-medium",
+      "reasoning_effort": "medium",
+      "label": "Gemini 4 Carbon (Medium)",
+      "score": null,
+      "cost_usd_per_task": null,
+      "time_seconds_per_task": null,
+      "index_version": null,
+      "routing_family": "reasoning",
+      "routing_priority": 200,
+      "automatic_eligible": true,
+      "allowed_kinds": [
+        "copy",
+        "english",
+        "extract",
+        "code-map",
+        "visual",
+        "prototype"
+      ],
+      "source_url": "https://deepmind.google/models/model-cards/gemini-4-carbon/",
+      "retrieved_at": "2026-11-14T02:18:01.214858+00:00",
+      "qualification": "Exact catalog and policy verified; maintainer member-route short-text generation accepted on 2026-11-14.",
+      "account_availability_source": "Official installed CLI account catalog observed 2026-11-14; availability does not prove remaining quota.",
+      "specialist_only": true,
+      "routing_role": "scarce_specialist",
+      "usage_tier": "high",
+      "capability_basis": "User selected Carbon to replace Argon as the preferred high tier; Google model card; bounded explicit exact-model exception.",
+      "public_benchmark_observation": null,
+      "short_text_validation": {
+        "status": "accepted",
+        "date": "2026-11-14",
+        "observed_model": "gemini-4-carbon-medium"
+      }
+    },
+    "gemini-4-carbon-high/high": {
+      "model": "gemini-4-carbon-high",
+      "reasoning_effort": "high",
+      "label": "Gemini 4 Carbon (High)",
+      "score": null,
+      "cost_usd_per_task": null,
+      "time_seconds_per_task": null,
+      "index_version": null,
+      "routing_family": "reasoning",
+      "routing_priority": 200,
+      "automatic_eligible": true,
+      "allowed_kinds": [
+        "copy",
+        "english",
+        "extract",
+        "code-map",
+        "visual",
+        "prototype"
+      ],
+      "source_url": "https://deepmind.google/models/model-cards/gemini-4-carbon/",
+      "retrieved_at": "2026-11-14T02:18:01.214858+00:00",
+      "qualification": "Exact catalog, effort, usage-tier and routing policy verified; this exact variant has not received a live generation probe in this refresh.",
+      "account_availability_source": "Official installed CLI account catalog observed 2026-11-14; availability does not prove remaining quota.",
+      "specialist_only": true,
+      "routing_role": "scarce_specialist",
+      "usage_tier": "high",
+      "capability_basis": "User selected Carbon to replace Argon as the preferred high tier; Google model card; bounded explicit exact-model exception.",
+      "public_benchmark_observation": {
+        "source_url": "https://artificialanalysis.ai/models/gemini-4-carbon",
+        "retrieved_at": "2026-11-14T02:18:01.214858+00:00",
+        "index_version": "v5.0.1",
+        "published_index_rounded": 60,
+        "published_cost_usd_per_task_rounded": 5.48,
+        "published_time_minutes_per_task_rounded": 31.1,
+        "thinking_variant": "high",
+        "frozen_policy_comparison": "Not comparable with the native v4.3.2 policy; never copy into legacy score fields."
+      }
+    },
+    "gemini-4-hydrogen-low/low": {
+      "model": "gemini-4-hydrogen-low",
+      "reasoning_effort": "low",
+      "label": "Gemini 4 Hydrogen (Low)",
+      "score": null,
+      "cost_usd_per_task": null,
+      "time_seconds_per_task": null,
+      "index_version": null,
+      "routing_family": "flash",
+      "routing_priority": 200,
+      "automatic_eligible": true,
+      "allowed_kinds": [
+        "copy",
+        "english",
+        "extract",
+        "code-map",
+        "visual",
+        "prototype"
+      ],
+      "source_url": "https://deepmind.google/models/model-cards/gemini-4-hydrogen/",
+      "retrieved_at": "2026-11-14T02:26:57.666792+00:00",
+      "qualification": "Exact catalog, effort, usage-tier and routing policy verified; this exact variant has not received a live generation probe in this refresh.",
+      "specialist_only": true,
+      "routing_role": "scarce_specialist",
+      "usage_tier": "low",
+      "capability_basis": "Official Hydrogen agentic/multimodal model card and live CLI catalog; low usage tier is independent of reasoning effort.",
+      "public_benchmark_observation": null
+    },
+    "gemini-4-hydrogen-medium/medium": {
+      "model": "gemini-4-hydrogen-medium",
+      "reasoning_effort": "medium",
+      "label": "Gemini 4 Hydrogen (Medium)",
+      "score": null,
+      "cost_usd_per_task": null,
+      "time_seconds_per_task": null,
+      "index_version": null,
+      "routing_family": "flash",
+      "routing_priority": 200,
+      "automatic_eligible": true,
+      "allowed_kinds": [
+        "copy",
+        "english",
+        "extract",
+        "code-map",
+        "visual",
+        "prototype"
+      ],
+      "source_url": "https://deepmind.google/models/model-cards/gemini-4-hydrogen/",
+      "retrieved_at": "2026-11-14T02:26:57.666792+00:00",
+      "qualification": "Exact catalog and policy verified; maintainer member-route short-text generation accepted on 2026-11-14.",
+      "specialist_only": true,
+      "routing_role": "scarce_specialist",
+      "usage_tier": "low",
+      "capability_basis": "Official Hydrogen agentic/multimodal model card and live CLI catalog; low usage tier is independent of reasoning effort.",
+      "public_benchmark_observation": null,
+      "short_text_validation": {
+        "status": "accepted",
+        "date": "2026-11-14",
+        "observed_model": "gemini-4-hydrogen-medium"
+      }
+    },
+    "gemini-4-hydrogen-high/high": {
+      "model": "gemini-4-hydrogen-high",
+      "reasoning_effort": "high",
+      "label": "Gemini 4 Hydrogen (High)",
+      "score": null,
+      "cost_usd_per_task": null,
+      "time_seconds_per_task": null,
+      "index_version": null,
+      "routing_family": "flash",
+      "routing_priority": 200,
+      "automatic_eligible": true,
+      "allowed_kinds": [
+        "copy",
+        "english",
+        "extract",
+        "code-map",
+        "visual",
+        "prototype",
+        "image"
+      ],
+      "source_url": "https://deepmind.google/models/model-cards/gemini-4-hydrogen/",
+      "retrieved_at": "2026-11-14T02:26:57.666792+00:00",
+      "qualification": "Exact catalog, effort, usage-tier and routing policy verified; this exact variant has not received a live generation probe in this refresh.",
+      "specialist_only": true,
+      "routing_role": "scarce_specialist",
+      "usage_tier": "low",
+      "capability_basis": "Official Hydrogen agentic/multimodal model card and live CLI catalog; low usage tier is independent of reasoning effort.",
+      "public_benchmark_observation": {
+        "source_url": "https://artificialanalysis.ai/models/gemini-4-hydrogen-high",
+        "retrieved_at": "2026-11-14T02:51:49.516788+00:00",
+        "index_version": "v5.0.1",
+        "thinking_variant": "high",
+        "published_index_rounded": 51,
+        "published_cost_usd_per_task_rounded": 1.87,
+        "published_time_minutes_per_task_rounded": 8.1,
+        "frozen_policy_comparison": "Not comparable with the native v4.3.2 policy; never copy into legacy score fields."
+      },
+      "image_tool_qualification": {
+        "status": "generic_image_tool_route_configured; no new live image generated during this model refresh",
+        "native_tool": "generate_image",
+        "backend_model_selection": "provider-controlled; orchestration model is distinct from image backend",
+        "source": "https://antigravity.google/docs/models",
+        "legacy_validation": "Existing generic per-image recovery and retry pipeline is preserved; no copied claim of live image acceptance for this model."
+      }
+    },
+    "gemini-4-hydrogen-xhigh/xhigh": {
+      "model": "gemini-4-hydrogen-xhigh",
+      "reasoning_effort": "xhigh",
+      "label": "Gemini 4 Hydrogen (Xhigh)",
+      "score": null,
+      "cost_usd_per_task": null,
+      "time_seconds_per_task": null,
+      "index_version": null,
+      "routing_family": "flash",
+      "routing_priority": 200,
+      "automatic_eligible": true,
+      "allowed_kinds": [
+        "copy",
+        "english",
+        "extract",
+        "code-map",
+        "visual",
+        "prototype"
+      ],
+      "source_url": "https://deepmind.google/models/model-cards/gemini-4-hydrogen/",
+      "retrieved_at": "2026-11-14T02:26:57.666792+00:00",
+      "qualification": "Exact catalog, effort, usage-tier and routing policy verified; this exact variant has not received a live generation probe in this refresh.",
+      "specialist_only": true,
+      "routing_role": "scarce_specialist",
+      "usage_tier": "low",
+      "capability_basis": "Official Hydrogen agentic/multimodal model card and live CLI catalog; low usage tier is independent of reasoning effort.",
+      "public_benchmark_observation": {
+        "source_url": "https://artificialanalysis.ai/models/gemini-4-hydrogen",
+        "index_version": "v5.0.1",
+        "thinking_variant": "xhigh",
+        "published_index_rounded": 54,
+        "published_cost_usd_per_task_rounded": 3.16,
+        "published_time_minutes_per_task_rounded": 14.3,
+        "retrieved_at": "2026-11-14T02:26:57.666792+00:00"
+      }
     }
   },
   "external_subscription_exception": {
@@ -595,7 +838,14 @@
     "allowed_combinations": [
       "gemini-4-argon-high/high",
       "gemini-4-argon-medium/medium",
-      "gemini-4-argon-low/low"
+      "gemini-4-argon-low/low",
+      "gemini-4-carbon-low/low",
+      "gemini-4-carbon-medium/medium",
+      "gemini-4-carbon-high/high",
+      "gemini-4-hydrogen-low/low",
+      "gemini-4-hydrogen-medium/medium",
+      "gemini-4-hydrogen-high/high",
+      "gemini-4-hydrogen-xhigh/xhigh"
     ],
     "allowed_purposes": {
       "tone_polish": {
@@ -667,7 +917,8 @@
         "efforts": [
           "low",
           "medium",
-          "high"
+          "high",
+          "xhigh"
         ],
         "kinds": [
           "copy",
@@ -675,7 +926,8 @@
           "extract",
           "code-map",
           "visual",
-          "prototype"
+          "prototype",
+          "image"
         ]
       }
     },
@@ -697,7 +949,16 @@
       ],
       "chat_opt_in_required": true
     },
-    "authorization": ""
+    "authorization": "",
+    "allowed_usage_tiers": {
+      "gemini-4-carbon-low/low": "high",
+      "gemini-4-carbon-medium/medium": "high",
+      "gemini-4-carbon-high/high": "high",
+      "gemini-4-hydrogen-low/low": "low",
+      "gemini-4-hydrogen-medium/medium": "low",
+      "gemini-4-hydrogen-high/high": "low",
+      "gemini-4-hydrogen-xhigh/xhigh": "low"
+    }
   },
   "external_ultra_routing": {
     "basis": "user_authorized_ultra",

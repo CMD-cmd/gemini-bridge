@@ -48,8 +48,8 @@ SERVER_INSTRUCTIONS = (
     "After chat opt-in, both tiers are available without local call-count or fixed expiry limits; "
     "record the direct permission in bridge_task_mode.authorization and material scope, then "
     "bridge_submit(dispatch_mode=auto, task_id, thread_id). Codex chooses model/effort from the "
-    "live catalog and current Skill/policy; light Flash tasks prefer Medium/High. "
-    "An additional Argon-specific quote is unnecessary. Manual is not an authorization bypass. "
+    "live catalog and current Skill/policy; fast-model tasks prefer Medium/High. "
+    "A separate model-specific quote is unnecessary after chat opt-in. Manual is not an authorization bypass. "
     "Read-only status, review and native panels do not invoke Gemini or require new generation consent. "
     "Review deliverables before bridge_review. Keep existing membership authentication; no API fallback. "
     "Credits follow the account setting: do not require or override useG1Credits=false. "
@@ -107,7 +107,7 @@ TOOLS += [
          "image_retry_limit": {"type":"integer", "minimum":0, "maximum":1, "description":"Retries of an explicitly failed image attempt; default 1; successful images are never regenerated."},
          "title": {"type": "string", "maxLength": 100},
          "request_id": {"type": "string", "description": "Stable caller ID: reuse only for recovery of the same submission, never for a different task."},
-         "timeout_seconds": {"type": "integer", "minimum": 10, "maximum": 1800, "description": "Soft generation budget from CLI launch, excluding queue/preflight. New stream progress can extend the same call within hard cap (high1800s, low600s). Unknown silence is not evidence of cloud activity. Short status/watch windows never cancel generation."},
+         "timeout_seconds": {"type": "integer", "minimum": 10, "maximum": 1800, "description": "Soft generation budget from CLI launch, excluding queue/preflight. New stream progress can extend the same call within the configured tier/effort hard cap (ordinary low600s, high/xhigh at most1800s). Unknown silence is not evidence of cloud activity. Short status/watch windows never cancel generation."},
          "files": {"type": "array", "items": {"type": "string"}, "maxItems": LIMITS["MAX_FILES"]},
          "acceptance": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
          "model": {"type": "string"}, "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max"]},
