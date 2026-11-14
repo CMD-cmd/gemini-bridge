@@ -182,6 +182,7 @@ def activate(root, job, record, profile):
                 # attach only this lease's hooks, including when the CLI resolves
                 # the agent from the immutable job instead of the stable cwd.
                 hook_entry='hooks: '+json.dumps([str(target/'hooks.json')])+'\n'
+                task_hook_entry='hooks: '+json.dumps([str(source/'hooks.json')])+'\n'
                 for agent in (source/'agents/bridge-workspace/agent.md',
                               target/'agents/bridge-workspace/agent.md'):
                     text=agent.read_text()
@@ -189,6 +190,9 @@ def activate(root, job, record, profile):
                         raise ValueError('Composite agent must keep ambient customizations disabled')
                     if '\nhooks:' in text:
                         lines=[line for line in text.splitlines() if line.startswith('hooks:')]
+                        if lines==[task_hook_entry.strip()]:
+                            agent.write_text(text.replace(task_hook_entry,hook_entry,1))
+                            continue
                         if lines != [hook_entry.strip()]:
                             raise ValueError('Unexpected pre-existing composite hook declaration')
                         continue

@@ -158,6 +158,9 @@ def approve_spawn(policy, payload, state):
     if type(step) is not int or step < 0:
         raise ValueError('Native invocation needs a nonnegative stepIdx')
     ns = _state(state)
+    _reconcile_lifecycle(policy,state,cfg)
+    if ns.get('identity_failures'):
+        raise ValueError('Native child identity failure prevents further delegation')
     key, digest = str(step), _digest(args)
     old = ns['approvals'].get(key)
     if old is not None:
@@ -296,6 +299,68 @@ def _edges(policy, state, cfg):
     return candidates  # Previously bound UUID edges remain evidence after tail rotation.
 
 
+def _model_evidence(cfg,payload):
+    return {'modelName':payload['modelName'],'effort':cfg['effort'],
+            'basis':'exact model slug including suffix and inherited parent selection',
+            'independent_backend_trace':False}
+
+
+def _bind_edge(ns,edge,evidence):
+    child_id=edge['conversation_id'];old=ns['children'].get(child_id)
+    if old and any(old.get(k)!=edge[k] for k in ('parent_conversation_id','stepIdx','type_name','role')):
+        raise ValueError('Native child identity changed')
+    if old is None:
+        old=dict(edge);ns['children'][child_id]=old
+    old['model_evidence']=dict(evidence)
+    return old
+
+
+def _record_lifecycle(child,item):
+    item=dict(item)
+    if item.get('event')=='PreInvocation':
+        if child.get('resume_requested') or child.get('stop_observed'):
+            child['turn_index']=child.get('turn_index',0)+1
+        child['resume_requested']=False
+        child['stop_observed']=False
+    if item.get('event')=='Stop' and not child.get('resume_requested'):
+        child['stop_observed']=True
+    if child.get('turn_index'):item['turn_index']=child['turn_index']
+    events=child.setdefault('lifecycle',[])
+    if item not in events:events.append(item)
+
+
+def _reconcile_lifecycle(policy,state,cfg):
+    ns=_state(state);pending=ns.get('unbound_observations',[])
+    denied=ns.get('unbound_identity_failures',[])
+    if not (pending or denied) or not _uuid(state.get('conversation_id')):return
+    # Old retained observations lack the identity receipt needed for new binding.
+    # Reading historical summaries must not reinterpret their legacy edge schema.
+    trusted=any((o.get('model_evidence') or {}).get('modelName')==cfg['model']
+                and (o.get('model_evidence') or {}).get('effort')==cfg['effort'] for o in pending)
+    if not trusted and not denied:return
+    edges=_edges(policy,state,cfg);remaining=[]
+    for observation in pending:
+        evidence=observation.get('model_evidence') or {}
+        edge=edges.get(observation.get('conversation_id'))
+        if edge is None or evidence.get('modelName')!=cfg['model'] or evidence.get('effort')!=cfg['effort']:
+            remaining.append(observation);continue
+        child=_bind_edge(ns,edge,evidence)
+        _record_lifecycle(child,{k:v for k,v in observation.items() if k not in ('conversation_id','model_evidence')})
+    ns['unbound_observations']=remaining
+    remaining=[]
+    for observation in denied:
+        if observation.get('conversation_id') in edges:
+            record_identity_failure(policy,state,observation)
+        else:remaining.append(observation)
+    ns['unbound_identity_failures']=remaining
+
+
+def record_identity_failure(policy,state,observation):
+    failures=_state(state).setdefault('identity_failures',[])
+    if observation not in failures:failures.append(dict(observation))
+    (Path(policy['job_dir'])/'native-child-stop.requested').write_text(observation['reason'])
+
+
 def resolve_child(policy, payload, state):
     """Bind only a child proven by an approved root invocation's native edge."""
     cfg = _config(policy)
@@ -309,15 +374,8 @@ def resolve_child(policy, payload, state):
     while True:
         edge = _edges(policy, state, cfg).get(child_id)
         if edge is not None:
-            old = ns['children'].get(child_id)
-            if old and any(old.get(k) != edge[k] for k in ('parent_conversation_id', 'stepIdx', 'type_name', 'role')):
-                raise ValueError('Native child identity changed')
-            if old is None:
-                old = dict(edge)
-                ns['children'][child_id] = old
-            old['model_evidence'] = {'modelName': payload['modelName'],
-                'effort': cfg['effort'], 'basis': 'exact model slug including suffix and inherited parent selection',
-                'independent_backend_trace': False}
+            old=_bind_edge(ns,edge,_model_evidence(cfg,payload))
+            _reconcile_lifecycle(policy,state,cfg)
             return old
         if time.monotonic() >= deadline:
             raise ValueError('No approved root-to-child native edge')
@@ -327,6 +385,7 @@ def resolve_child(policy, payload, state):
 def authorize_message_control(policy, payload, state):
     cfg, root = _config(policy), _root(state)
     ns = _state(state)
+    _reconcile_lifecycle(policy,state,cfg)
     sender = payload.get('conversationId')
     if sender != root and sender not in ns['children']:
         raise ValueError('Unidentified child cannot control messages')
@@ -342,6 +401,14 @@ def authorize_message_control(policy, payload, state):
             raise ValueError('Native message recipient must be one conversation ID')
         if not ((sender == root and recipient in ns['children']) or (sender in ns['children'] and recipient == root)):
             raise ValueError('Native messages must stay on a proven parent-child edge')
+        if sender==root and ns['children'][recipient].get('stop_observed'):
+            if cfg['capacity_mode']=='concurrent':
+                occupied=sum(a['reserved'] for a in ns['approvals'].values())-_released(ns)
+                if occupied>=cfg['max_children']:
+                    raise ValueError('Native child quota exceeded when resuming an idle child')
+            # Messaging an idle child starts another turn. Reserve before dispatch;
+            # a duplicate old Stop cannot release it before a new PreInvocation.
+            ns['children'][recipient].update(resume_requested=True,stop_observed=False)
         return {'decision': 'auto_approve', 'reason': 'Proven task parent-child message'}
     if name != 'manage_subagents' or sender != root:
         raise ValueError('Only root may manage native children')
@@ -388,21 +455,23 @@ def observe_lifecycle(policy, payload, state, event):
     child = ns['children'].get(child_id)
     if child is None:
         # Hooks may precede the parent's stdout edge. Observation grants nothing.
-        ns.setdefault('unbound_observations', []).append({'conversation_id': child_id, **item})
-        return None
-    if event == 'Stop':
-        child['stop_observed'] = True
-    child.setdefault('lifecycle', []).append(item)
+        ns.setdefault('unbound_observations', []).append({'conversation_id': child_id,
+            'model_evidence':_model_evidence(cfg,payload),**item})
+        _reconcile_lifecycle(policy,state,cfg)
+        return ns['children'].get(child_id)
+    _record_lifecycle(child,item)
     return child
 
 
 def summarize(policy, state):
     cfg = _config(policy)
+    _reconcile_lifecycle(policy,state,cfg)
     ns = state.get('native_subagents', {})
     children = ns.get('children', {})
     requested = sum(a['reserved'] for a in ns.get('approvals', {}).values())
     stopped = sum(c.get('stop_observed') is True for c in children.values())
     return {'requested': requested, 'identified': len(children), 'stop_observed': stopped,
+            'identity_failures':ns.get('identity_failures',[]),
             'capacity_mode': cfg['capacity_mode'],
             'capacity_used': requested - (_released(ns) if cfg['capacity_mode'] == 'concurrent' else 0),
             'unknown': max(0, requested - len(children)),

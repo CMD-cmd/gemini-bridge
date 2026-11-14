@@ -10,6 +10,8 @@ v0.13 已实测 reader、builder、reviewer 三角色及 concurrent 槽位依实
 
 `max_children` 最多 4，需本任务明确授权；省略 roles 保持 reader，旧 scope 不扩权。默认 `capacity_mode="lifetime"` 是任务总派遣额度；明确 `concurrent` 才按并发槽位管理，只有实际观察到 child Stop 才释放槽位。静默、父任务说完成或发送 kill 不释放槽位，也不证明云端已停。
 
+Stop 表示一轮结束，不表示会话永久关闭。向已停止的子任务发送新指令时，先检查并预留可用并发名额；新 PreInvocation 表示又一轮开始，后续 Stop 才释放该轮名额。正在等待唤醒时，旧 Stop 的重复通知不能释放新预留。
+
 父 Gemini 自行写提示、等待并汇总，走 headless；Codex 选择父模型／effort，子继承精确组合，只开一层。后台核对真实父子边、逐工具身份与目录，不以配置或模型自报代替证据。
 
 这里允许的是本任务获准的单层派遣，不是全局任意多代理。Orchestrator 的 Carbon／Hydrogen 交接发生在同一会话，属于另一种固定配置模式，不能当成子模型覆盖；其适配状态见 [Orchestrator 适配](orchestrator.md)。
@@ -25,5 +27,7 @@ v0.13 已实测 reader、builder、reviewer 三角色及 concurrent 槽位依实
 ## 验收与后续
 
 查看实际角色、读取／写入／回传与 Stop，核对 `native_children_validation`、源哈希和父产物。invoke 返回、消息发出与正常 Stop 是不同证据。卡片只展示已有本地活动，不推测思考或完成百分比。
+
+子任务可能直接返回文字、没有文件工具调用。已核验身份的生命周期通知与批准的父子关系均存在时，可以据此确认本轮 Stop；通知早于父子关系日志时先暂存，后续匹配再回收状态。没有关系证明的 UUID 不获得权限。生命周期发现的身份冲突也须保留并停止相关执行，不能因它不属于普通工具调用而漏掉；历史记录缺少新身份凭据时只保留原有可读状态。
 
 取消撤销工具权限并停止本地执行；缺 child 远端停止确认时保留远端未知。v0.11 取消样本仅证明本地停止／撤权。带 child 的会话不使用 continue_job_id；后续用新 scope、新任务及必要的已验收产物。ACP 项目 MCP 与 headless 子任务仍分开授权，不恢复旧 scope。

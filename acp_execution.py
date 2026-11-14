@@ -16,26 +16,34 @@ CANCEL_ACK_WAIT_SECONDS = 3
 _TERMINAL_STOP_REASONS = {'end_turn', 'cancelled', 'max_tokens', 'max_turn_requests', 'refusal'}
 
 
-def select_model(client, session, model, effort, model_execution=None):
+def select_model(client, session, model, effort, model_execution=None, *, on_config=None):
     execution = validate_model_execution({'model':model, 'effort':effort,
                                           'model_execution':model_execution})
-    offered = {x['modelId'] for x in session.get('models', {}).get('availableModels', [])}
-    options = {o['id']: o for o in session.get('configOptions', [])}
+    offered = {x['modelId'] for x in (session.get('models') or {}).get('availableModels', []) or []}
+    options = {o['id']: o for o in session.get('configOptions', []) or []}
     preselected=False
-    if execution is not None and not offered and not options.get('model'):
+    def set_option(key,value):
+        kwargs={'timeout':45}
+        if on_config is not None:kwargs['on_response']=on_config
+        return client.request('session/set_config_option',
+            {'sessionId':session['sessionId'],'configId':key,'value':value},**kwargs)
+    if not options.get('model') and (not offered or model in offered):
         # Some fresh sessions omit the legacy model list until account bootstrap.
         # A configuration request is zero-generation. Require the provider's
         # exact option list AND acknowledgement, never infer from the local ID.
-        updated=client.request('session/set_config_option',
-                               {'sessionId':session['sessionId'],'configId':'model','value':model},timeout=45)
+        updated=set_option('model',model)
         options={o['id']:o for o in updated.get('configOptions',[])}
         option=options.get('model',{})
-        if option.get('currentValue')!=model or model not in {o.get('value') for o in option.get('options',[])}:
+        acknowledged=[o.get('value') for o in option.get('options',[]) if o.get('value')==model
+                      or execution is None and model==o.get('value','')+'-'+effort]
+        if len(acknowledged)!=1 or option.get('currentValue')!=acknowledged[0]:
             raise ValueError('ACP model configuration is not ready; no provider prompt was sent')
         preselected=True
     bases = [o['value'] for o in options.get('model', {}).get('options', [])
              if o.get('value') == model or (execution is None and model == o.get('value', '')+'-'+effort)]
-    if model not in offered and (offered or not bases):
+    if offered and model not in offered and not (execution is None and len(bases)==1 and bases[0] in offered):
+        raise ValueError('Requested model is not offered by this ACP session')
+    if not offered and not bases:
         raise ValueError('Requested model is not offered by this ACP session')
     if len(bases) != 1:
         raise ValueError('Cannot bind the exact ACP model and thinking level')
@@ -45,8 +53,7 @@ def select_model(client, session, model, effort, model_execution=None):
         expected.append(('thought_level', effort))
     for key, value in expected:
         if preselected and key=='model':continue
-        updated = client.request('session/set_config_option',
-                                 {'sessionId':sid, 'configId':key, 'value':value}, timeout=45)
+        updated = set_option(key,value)
         options = {o['id']:o for o in updated.get('configOptions', [])}
         if options.get(key, {}).get('currentValue') != value:
             raise ValueError('ACP did not acknowledge selected '+key)
@@ -93,6 +100,8 @@ def run(root, profile, prompt, job, *, cancel=None, on_process=None, before_exec
     policy=waiting_policy(profile)
     thought_hashes=set(); thought_activity_sequence=0
     tool_steps={}
+    latest_config={}
+    config_lock=threading.RLock()
     provider_stop_reason=None; turn_result=None; cancel_requested=False
     def event(value):
         value.setdefault('at',time.time())
@@ -139,17 +148,19 @@ def run(root, profile, prompt, job, *, cancel=None, on_process=None, before_exec
                     event({'event':'step_update','step_update':dict(step)})
         elif kind=='config_option_update':
             atomic_json(job/'acp-last-config.json',update)
-            if selection is not None:
-                selection['config_options'].update({o['id']:o for o in update.get('configOptions', [])
-                    if o['id'] != 'thought_level' or not selection.get('model_execution')})
-                expected={'model':selection['base_model']}
-                if not selection.get('model_execution'):
-                    expected['thought_level']=profile['effort']
-                if any(selection['config_options'].get(key,{}).get('currentValue') != value
-                       for key,value in expected.items()):
-                    selection['matches']=False
-                    failure='model_identity_mismatch: ACP configuration drifted during prompt'
-                    atomic_json(job/'acp-model-evidence.json',selection)
+            with config_lock:
+                latest_config.update({o['id']:copy.deepcopy(o) for o in update.get('configOptions',[])})
+                if selection is not None:
+                    selection['config_options'].update({o['id']:o for o in update.get('configOptions', [])
+                        if o['id'] != 'thought_level' or not selection.get('model_execution')})
+                    expected={'model':selection['base_model']}
+                    if not selection.get('model_execution'):
+                        expected['thought_level']=profile['effort']
+                    if any(selection['config_options'].get(key,{}).get('currentValue') != value
+                           for key,value in expected.items()):
+                        selection['matches']=False
+                        failure='model_identity_mismatch: ACP configuration drifted during prompt'
+                        atomic_json(job/'acp-model-evidence.json',selection)
     def request(method, params):
         event({'event':'acp_permission','method':method,'session_id':params.get('sessionId'),'decision':'denied'})
         if method=='session/request_permission':return {'outcome':{'outcome':'cancelled'}}
@@ -176,11 +187,23 @@ def run(root, profile, prompt, job, *, cancel=None, on_process=None, before_exec
         session['sessionId']=sid
         atomic_json(job/'acp-session.json',session)
         if on_session_ready:on_session_ready(sid)
-        selected=select_model(client,session,profile['model'],profile['effort'],profile.get('model_execution'))
-        # Flush legitimate intermediate setting updates before tracking drift.
+        def config_receipt(value):
+            with config_lock:
+                latest_config.update({o['id']:copy.deepcopy(o) for o in value.get('configOptions',[])})
+        selected=select_model(client,session,profile['model'],profile['effort'],profile.get('model_execution'),on_config=config_receipt)
+        # Receipts and notifications share wire order. The final receipt replaces
+        # legitimate intermediate settings; a later drift must still be checked.
         client.drain_notifications(timeout=5)
-        selection=selected
-        atomic_json(job/'acp-model-evidence.json',selection)
+        with config_lock:
+            selection=selected
+            selection['config_options'].update({key:value for key,value in latest_config.items()
+                if key!='thought_level' or not selection.get('model_execution')})
+            expected={'model':selection['base_model']}
+            if not selection.get('model_execution'):expected['thought_level']=profile['effort']
+            if any(selection['config_options'].get(key,{}).get('currentValue')!=value for key,value in expected.items()):
+                selection['matches']=False
+                failure='model_identity_mismatch: ACP configuration changed during selection'
+            atomic_json(job/'acp-model-evidence.json',selection)
         manifest=json.loads((job/'inputs.json').read_text());content=[{'type':'text','text':
             prompt if workspace_mode else 'Images are attached inline. Read the attached images directly; no tools are granted.\n'+prompt}]
         for item in manifest:

@@ -348,10 +348,26 @@ def _transaction(policy, payload, kind):
                 result = {'decision': 'post', 'reason': 'Completion observed; command ID adapter pending native verification'}
         except (ValueError, TypeError, KeyError, OSError) as error:
             result = {'decision': 'deny', 'reason': str(error)}
-            if (kind=='pre' and policy.get('native_subagents') and state.get('conversation_id')
+            if ((kind=='pre' or kind.startswith('lifecycle:')) and policy.get('native_subagents') and state.get('conversation_id')
                     and payload.get('conversationId')!=state['conversation_id']
                     and any(s in str(error) for s in ('model','identity','workspace','artifact','root-to-child'))):
-                (job/'native-child-stop.requested').write_text(str(error))
+                ns=state.get('native_subagents',{});child_id=payload.get('conversationId')
+                proven=child_id in ns.get('children',{})
+                if kind!='pre' and not proven:
+                    try:
+                        from native_children import _config,_edges
+                        proven=child_id in _edges(policy,state,_config(policy))
+                    except (ValueError,TypeError,KeyError,OSError):pass
+                if kind=='pre' or proven:
+                    from native_children import record_identity_failure
+                    record_identity_failure(policy,state,{'conversation_id':child_id,'kind':kind,'reason':str(error)})
+                else:
+                    from native_children import _uuid
+                    if _uuid(child_id):
+                        ns=state.setdefault('native_subagents',{'approvals':{},'children':{}})
+                        observation={'conversation_id':child_id,'kind':kind,'reason':str(error)}
+                        pending=ns.setdefault('unbound_identity_failures',[])
+                        if observation not in pending:pending.append(observation)
         record = _record(policy, payload, result, kind)
         key = _digest({k: v for k, v in record.items() if k != 'at'})
         seen = state.setdefault('audit_keys', [])

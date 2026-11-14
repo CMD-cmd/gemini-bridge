@@ -36,6 +36,13 @@ class _Pending:
     event: threading.Event = field(default_factory=threading.Event)
     result: Any = None
     error: ACPError | None = None
+    observer: Callable | None = None
+
+
+@dataclass
+class _ResponseObservation:
+    callback: Callable
+    value: Any
 
 
 class ACPClient:
@@ -143,10 +150,10 @@ class ACPClient:
                 raise error from exc
 
     def request(self, method: str, params: Any = None, *, timeout: float | None = 60.0,
-                send_guard=None, on_sent=None) -> Any:
+                send_guard=None, on_sent=None, on_response=None) -> Any:
         if timeout is not None and timeout < 0:
             raise ValueError("timeout must be nonnegative or None")
-        pending = _Pending()
+        pending = _Pending(observer=on_response)
         with self._lock:
             self._check()
             self._next_id += 1
@@ -227,6 +234,12 @@ class ACPClient:
             pending = self._pending.pop(response_id, None)
             if pending is not None:  # Late responses to expired requests are ignored.
                 pending.result, pending.error = message.get("result"), error
+                if error is None and pending.observer is not None:
+                    # Observe receipts in wire order with preceding/following
+                    # notifications, even when their callback worker is delayed.
+                    with self._notification_condition:
+                        self._notifications_submitted += 1
+                    self._notifications.put(_ResponseObservation(pending.observer,pending.result))
                 pending.event.set()
 
     def drain_notifications(self, timeout: float | None = 60.0) -> None:
@@ -256,7 +269,11 @@ class ACPClient:
                 if message is None:
                     return
                 try:
-                    self._handle_callback(message)
+                    if isinstance(message,_ResponseObservation):
+                        try:message.callback(message.value)
+                        except Exception:pass
+                    else:
+                        self._handle_callback(message)
                 finally:
                     with self._notification_condition:
                         self._notifications_completed += 1

@@ -12,7 +12,7 @@
 
 ## 工作区与任务守卫
 
-组合模式仍使用原有 scope、独立 worktree、保护原件、命令 broker 与结果回收。CLI1.5.8 的文件工具别名需去重；任务 Agent 不继承其他定制项，通过 hooks 字段显式加载当前稳定会话 lease 的守卫。不能因工具缺少审计而略过核验，也不扩大到全局权限。[官方 Hook 说明](https://antigravity.google/docs/hooks)
+组合模式仍使用原有 scope、独立 worktree、保护原件、命令 broker 与结果回收。CLI1.5.8 的文件工具别名需去重；任务 Agent 不继承其他定制项，通过 hooks 字段显式加载任务守卫：headless 指向本任务，ACP 指向当前稳定会话 lease。不能因工具缺少审计而略过核验，也不扩大到全局权限。[官方 Hook 说明](https://antigravity.google/docs/hooks)
 
 卡片显示策略提供的组合名称与“系统固定”。配置／选项确认与独立后端追踪分别记录，不能把请求选项当成每一步实际模型的证明。模型身份、工具审计、真实命令状态与文件变化都参与验收。
 
