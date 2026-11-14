@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 
 ROLES = ('reader', 'builder', 'reviewer')
-READ_TOOLS = ['view_file', 'read_file', 'list_dir', 'find_by_name', 'grep_search', 'send_message']
+# The CLI resolves view_file to read_file; declaring both conflicts at startup.
+# Runtime guards retain both schemas and the same scoped path checks.
+READ_TOOLS = ['view_file', 'list_dir', 'find_by_name', 'grep_search', 'send_message']
 WRITE_TOOLS = ['write_to_file', 'replace_file_content', 'multi_replace_file_content']
 
 

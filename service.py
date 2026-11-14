@@ -139,6 +139,9 @@ def main():
                     value = jobs.cancel(parts[2])
                 elif len(parts) == 4 and parts[1] == 'jobs' and parts[3] == 'review':
                     value = jobs.review(parts[2], args)
+                elif len(parts) == 4 and parts[1] == 'jobs' and parts[3] == 'revalidate':
+                    if args:raise ValueError('Local revalidation takes no generation or scope arguments')
+                    value = jobs.revalidate_material(parts[2])
                 else:
                     return self.send({'error': 'Not found'}, 404)
                 self.send(value)

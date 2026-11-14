@@ -729,6 +729,42 @@ class Jobs:
             value['image_diagnostics']=generation_summary(ROOT/'runs'/job_id,state.get('image_count'))
         return value
 
+    def revalidate_material(self, job_id):
+        """Repair the known reader-alias false alarm without replaying generation."""
+        from bridge import material_read_audit, provider_execution_aborted, SOURCE_FINGERPRINT
+        with self.lock:
+            state=self.state(job_id);job=ROOT/'runs'/job_id
+            path=job/'report.json';report=json.loads(path.read_text())
+            if state['status']=='completed_unreviewed' and report.get('compatibility_revalidation'):
+                return state
+            if (state['status']!='failed_or_unverified' or state.get('execution_mode')=='workspace'
+                    or state.get('kind')!='visual' or report.get('failure_reasons')!=['unexpected_tool_use_in_task']
+                    or report.get('exit_code')!=0 or report.get('native_status')!='SUCCESS'
+                    or report.get('model_matches') is not True or report.get('selected_agent')!='bridge-visual'
+                    or report.get('observed_agent')!=report.get('selected_agent')
+                    or report.get('parse_errors') or report.get('denied_actions')
+                    or report.get('provider_error_category') or not (report.get('response') or '').strip()
+                    or provider_execution_aborted(report.get('response'))
+                    or not report.get('tool_calls') or set(report['tool_calls'])-{'read_file','view_file'}):
+                raise ValueError('This record is not the known selected-image reader alias false alarm')
+            steps=[]
+            for line in (job/'events.jsonl').read_text().splitlines():
+                event=json.loads(line);step=event.get('step_update',{})
+                if step.get('step_type')=='tool':steps.append(step)
+            audit=material_read_audit(job,steps)
+            if not audit['verified'] or audit['observations']<len(report['tool_calls']):
+                raise ValueError('Selected image snapshots or tool evidence did not verify')
+            backup=job/'compatibility-revalidation-before.json'
+            if backup.exists():raise ValueError('A prior revalidation backup exists; inspect it before changing evidence')
+            atomic_json(backup,{'state':state,'report':report})
+            report.update(status='completed_unreviewed',failure_reasons=[],material_read_audit=audit,
+                compatibility_revalidation={'reason':'native reader alias verified against selected image snapshots',
+                    'at':time.time(),'source_fingerprint':SOURCE_FINGERPRINT,'model_calls':0,
+                    'original_status':state['status'],'original_failure_reasons':['unexpected_tool_use_in_task'],
+                    'backup':backup.name})
+            atomic_json(path,report)
+            return self.update(job_id,status='completed_unreviewed')
+
     def review(self, job_id, args):
         with self.lock:
             state = self.state(job_id)

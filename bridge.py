@@ -281,11 +281,40 @@ def provider_failure_details(error):
 
 def provider_execution_aborted(response):
     """The CLI may end a turn normally while returning only its error banner."""
-    return isinstance(response,str) and response.strip() in {
+    if not isinstance(response,str):return False
+    text=response.strip()
+    return text in {
         'Agent execution terminated due to error.',
         '⚠ Agent execution terminated due to error.',
         '⚠️ Agent execution terminated due to error.',
-    }
+    } or re.fullmatch(r'(?:⚠\ufe0f?\s*)?failed to construct executor:\s*[^\r\n]+',text) is not None
+
+
+def material_read_audit(job, steps):
+    """Accept native reader aliases only for the selected image snapshots."""
+    entries=json.loads((Path(job)/'inputs.json').read_text())
+    selected={item['staged_path']:item for item in entries if item.get('kind')=='image'}
+    checked=set();issues=[];calls=0
+    for step in steps:
+        name=step.get('tool_name')
+        if name not in ('view_file','read_file'):continue
+        calls+=1
+        info=step.get('tool_info') or {}
+        args=info.get('parameters') or {}
+        value=args.get('AbsolutePath' if name=='view_file' else 'Path') if isinstance(args,dict) else None
+        if not isinstance(value,str) or value not in selected:
+            issues.append('material_read_outside_selected_snapshots');continue
+        if value in checked:continue
+        path=Path(value);item=selected[value]
+        try:
+            valid=(path.is_absolute() and '..' not in path.parts and not path.is_symlink()
+                   and path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest()==item.get('sha256'))
+        except OSError:valid=False
+        if not valid:
+            issues.append('material_snapshot_identity_unverified');continue
+        checked.add(value)
+    return {'verified':not issues,'observations':calls,'verified_snapshots':len(checked),
+            'issues':sorted(set(issues))}
 
 
 def get_model_catalog(evidence_dir=None, *, diagnostic_proxy=None, force_refresh=False):
@@ -529,6 +558,7 @@ def run_job(profile_path, prompt_path, *, job_id=None, cancel=None, on_process=N
     parse_errors = 0
     tool_calls = []
     tool_steps = set()
+    material_reader_steps = []
     image_steps = {}
     response_observed = False
     terminal_statuses = set()
@@ -553,6 +583,8 @@ def run_job(profile_path, prompt_path, *, job_id=None, cancel=None, on_process=N
         if step.get('step_type') == 'agent_response' and isinstance(step.get('text_delta'),str) and step['text_delta'].strip():
             response_observed = True
         if step.get("step_type") == "tool":
+            if step.get('tool_name') in ('view_file','read_file'):
+                material_reader_steps.append(step)
             index = step.get("step_index")
             key = (step.get("conversation_id"), index)
             if index is None or key not in tool_steps:
@@ -625,9 +657,13 @@ def run_job(profile_path, prompt_path, *, job_id=None, cancel=None, on_process=N
         if not workspace_audit and tool_calls:
             failure_reasons.append('workspace_guard_not_observed')
     else:
-        allowed_tools = ['generate_image', 'view_file'] if generate_image else [] if text_only else ['view_file']
+        allowed_tools = ['generate_image', 'view_file', 'read_file'] if generate_image else [] if text_only else ['view_file','read_file']
     if workspace_record is None and any(name not in allowed_tools for name in tool_calls):
         failure_reasons.append("unexpected_tool_use_in_task")
+    material_audit=None
+    if workspace_record is None and not generate_image and not text_only:
+        material_audit=material_read_audit(job,material_reader_steps)
+        failure_reasons.extend(material_audit['issues'])
     generated_images = []
     image_metadata = None
     if generate_image:
@@ -682,6 +718,7 @@ def run_job(profile_path, prompt_path, *, job_id=None, cancel=None, on_process=N
         "declared_allowed_tools": allowed_tools,
         "cli_advertised_tools": (init or {}).get("tools"),
         "tool_allowlist_enforcement": "declared custom-agent configuration plus post-execution call audit; CLI init inventory is not proof of filtering",
+        "material_read_audit": material_audit,
         "text_only": text_only, "failure_reasons": failure_reasons,
         "output_warnings": output_warnings,
         "output_validation_mode": 'strict' if contract.get('strict', False) else 'advisory',

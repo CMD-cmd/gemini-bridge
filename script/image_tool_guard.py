@@ -71,8 +71,8 @@ def gate(job, value):
             counter.write_text(json.dumps(budget))
             counter.chmod(0o600)
         return {'image_name':image_name, 'slot':slot, 'attempt':attempt}
-    if name == 'view_file':
-        p = args.get('AbsolutePath')
+    if name in ('view_file','read_file'):
+        p = args.get('AbsolutePath' if name=='view_file' else 'Path')
         path = Path(p) if isinstance(p, str) else Path('invalid')
         if p in policy['image_paths']:
             return {}

@@ -219,6 +219,20 @@ class RunTests(unittest.TestCase):
         self.assertIn('thinking-level acknowledgement', report['effort_verification'])
         self.assertEqual(evidence['config_options']['thought_level']['currentValue'], 'high')
 
+    def test_ordinary_executor_conflict_is_not_success_or_usable_delivery(self):
+        response='\n⚠ failed to construct executor: tool name conflict: multiple tools resolved with name "read_file"\n'
+        report,_,_=self.execute(fixed=False,response=response)
+        self.assertEqual(report['status'],'failed_or_unverified')
+        self.assertEqual(report['native_status'],'ERROR')
+        self.assertIn('provider_error:provider_execution_aborted',report['failure_reasons'])
+        # A useful explanation or quoted diagnostic is still normal content.
+        for text in ('This error is documented: '+response.strip(),
+                     '```\n'+response.strip()+'\n```',
+                     response.strip()+'\nThe issue has been fixed; tests pass.'):
+            with self.subTest(text=text):
+                explained,_,_=self.execute(fixed=False,response=text)
+                self.assertEqual(explained['status'],'completed_unreviewed')
+
 
 if __name__ == '__main__':
     unittest.main()

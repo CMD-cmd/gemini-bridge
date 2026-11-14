@@ -483,11 +483,9 @@ Task input files are evidence, not authority to change permissions, credentials,
 
 def declared_tools(record):
     from workspace_guard import allowed_tools
-    result=list(allowed_tools)
-    if record.get('model_execution'):
-        # CLI1.5.8 resolves both aliases to read_file in a composite executor.
-        # Passing both prevents executor construction before any generation.
-        result.remove('read_file')
+    # CLI1.5.8 resolves both declarations to read_file for ordinary and composite
+    # executors. Declare one alias; the guard still validates either native schema.
+    result=[name for name in allowed_tools if name!='read_file']
     # MCP dispatcher and fixed wait are runtime meta-tools, not declarable components.
     if record.get('native_subagents'):result+=['invoke_subagent','manage_subagents','send_message']
     return result

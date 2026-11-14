@@ -99,7 +99,7 @@ def request(path, payload=None, *, start=True, timeout_seconds=55):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['list', 'status', 'watch', 'cancel', 'models', 'submit', 'review', 'task-mode', 'health', 'view', 'doctor', 'plan', 'summary', 'retry', 'steer', 'recover'])
+    parser.add_argument('action', choices=['list', 'status', 'watch', 'cancel', 'models', 'submit', 'review', 'task-mode', 'health', 'view', 'doctor', 'plan', 'summary', 'retry', 'steer', 'recover', 'revalidate'])
     parser.add_argument('--wait-seconds', type=int, default=30)
     parser.add_argument('--job-id')
     parser.add_argument('--thread-id')
@@ -110,12 +110,12 @@ if __name__ == '__main__':
         print(job_url(args.job_id) if args.job_id else ensure_running()['url'])
         raise SystemExit(0)
     from bridge import validate_job_id
-    if args.action in ('status', 'watch', 'cancel', 'review', 'summary', 'retry', 'steer', 'recover'):
+    if args.action in ('status', 'watch', 'cancel', 'review', 'summary', 'retry', 'steer', 'recover', 'revalidate'):
         validate_job_id(args.job_id)
     routes = {'list': '/jobs', 'models': '/models', 'status': '/jobs/' + str(args.job_id),
               'cancel': '/jobs/' + str(args.job_id) + '/cancel', 'review': '/jobs/' + str(args.job_id) + '/review',
-              'submit': '/jobs', 'task-mode': '/task-mode', 'health': '/health', 'doctor':'/doctor', 'plan':'/plan', 'summary':'/jobs/'+str(args.job_id)+'/summary', 'retry':'/jobs/'+str(args.job_id)+'/retry', 'steer':'/jobs/'+str(args.job_id)+'/steer','recover':'/jobs/'+str(args.job_id)+'/recover'}
-    payload = json.loads(args.request_file.read_text()) if args.request_file else ({} if args.action == 'cancel' else None)
+              'submit': '/jobs', 'task-mode': '/task-mode', 'health': '/health', 'doctor':'/doctor', 'plan':'/plan', 'summary':'/jobs/'+str(args.job_id)+'/summary', 'retry':'/jobs/'+str(args.job_id)+'/retry', 'steer':'/jobs/'+str(args.job_id)+'/steer','recover':'/jobs/'+str(args.job_id)+'/recover', 'revalidate':'/jobs/'+str(args.job_id)+'/revalidate'}
+    payload = json.loads(args.request_file.read_text()) if args.request_file else ({} if args.action in ('cancel','revalidate') else None)
     if args.action == 'retry':
         if not args.thread_id or args.request_file:
             parser.error('retry requires --thread-id and does not accept --request-file')
