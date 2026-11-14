@@ -74,7 +74,7 @@ python3 "<BRIDGE_ROOT>/client.py" retry --job-id <原失败任务编号> --threa
 
 ## 验收与用量
 
-`completed_unreviewed` 和原生 `SUCCESS` 只证明执行结束。检查实际模型是否与请求一致，再对照事实、证据位置和输出要求；审核通过或失败后调用 `bridge_review`，写具体理由。后端没有独立报告推理档位，不能把启动参数称作后端档位证明。
+`completed_unreviewed` 和原生 `SUCCESS` 只证明执行结束。对照事实、证据位置与输出要求按内容核对：保留没有问题的部分，局部问题由 Codex 修订或请 Gemini 解释／修改后复验。`bridge_review` 支持 accepted、accepted_with_changes、partially_accepted、revision_requested、rejected；note 写简短具体理由，可选 accepted_items、issues、changes 保存采用与修订范围，多轮记录保留历史。执行状态与内容采用分别记录，不把格式小问题扩大为整份拒绝，也不把未核验事实标为通过。细节见[交接与续聊](delegation-workflow.md)。后端没有独立报告推理档位，不能把启动参数称作后端档位证明。
 
 状态工具的紧凑结果预览最多 6000 字符，完整报告与原始事件留在本地；这是展示预算，不是模型输出长度限制或任务默认字数目标。先读紧凑结果，需要时再读完整报告；等待阶段做独立工作，不频繁轮询、不转述原始日志。一次失败先定位，按有限重试处理。取消后确认终态。
 

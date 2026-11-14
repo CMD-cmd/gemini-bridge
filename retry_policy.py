@@ -56,7 +56,7 @@ def decision(state, report=None):
         return stop('User cancellation stops retries')
     if state.get('status') not in ('bridge_error', 'failed_or_unverified', 'timeout'):
         return stop('No confirmed retryable terminal failure')
-    if state.get('pid') or state.get('review') == 'accepted':
+    if state.get('pid') or state.get('review') in ('accepted','accepted_with_changes','partially_accepted'):
         return stop('Execution or accepted delivery must be inspected first')
     if state.get('kind') == 'image':
         return stop('Use per-image recovery; never regenerate a whole image batch')

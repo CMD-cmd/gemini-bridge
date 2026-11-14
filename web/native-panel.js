@@ -9,15 +9,29 @@ const ERROR_STATES=new Set(['failed','failed_or_unverified','bridge_error','time
 // Keep the canonical identifier in the tooltip; only the display name is formatted.
 function renderModelHeader(value){
   const observed=String(value.observed_model||'').trim(),requested=String(value.requested_model||'').trim(),effort=String(value.requested_effort||'').trim();
+  const execution=value.model_execution||{},orchestrated=execution.mode==='orchestrated',fixed=orchestrated||execution.effort_mode==='fixed'||effort.toLowerCase()==='fixed';
+  const executionLabel=execution.label||value.execution_label;
   const raw=observed||requested;
   const suffix=effort&&['minimal','low','medium','high','xhigh','max'].includes(effort.toLowerCase())?'-'+effort.toLowerCase():'';
   const name=(suffix&&raw.toLowerCase().endsWith(suffix)?raw.slice(0,-suffix.length):raw).split(/[-_]+/).map(part=>part?part[0].toUpperCase()+part.slice(1):'').join(' ');
-  $('model').textContent=raw?`${observed?'模型':'请求模型'} · ${name}`:'模型未记录';
-  $('model').title=raw?`${observed?'实际返回模型':'请求模型'}：${raw}`:'';
-  $('effort').textContent=effort?'思考 '+effort[0].toUpperCase()+effort.slice(1):'';
-  $('effort').title='请求的思考强度；执行端未单独报告实际档位';
-  $('effort').hidden=!effort;
+  $('model').textContent=executionLabel?`组合执行 · ${executionLabel}`:raw?`${observed?'模型':'请求模型'} · ${name}`:'模型未记录';
+  $('model').title=orchestrated?`所选组合：${raw||'未记录'}；记录未逐步追踪实际后端模型`:raw?`${observed?'实际返回模型':'请求模型'}：${raw}`:'';
+  $('effort').textContent=fixed?'思考 系统固定':effort?'思考 '+effort[0].toUpperCase()+effort.slice(1):'';
+  $('effort').title=fixed?'组合采用系统固定配置，不提供独立的思考强度选项':'请求的思考强度；执行端未单独报告实际档位';
+  $('effort').hidden=!effort&&!fixed;
   $('model').parentElement.hidden=false;
+}
+
+function executionConfiguration(){
+  const execution=card?.model_execution||detail?.state?.model_execution||detail?.report?.model_execution||detail?.profile?.model_execution||{};
+  return {label:execution.label||card?.execution_label||card?.requested_model,
+    orchestrated:execution.mode==='orchestrated',
+    fixed:execution.mode==='orchestrated'||execution.effort_mode==='fixed'||card?.requested_effort==='fixed'};
+}
+function executionConfigurationHTML(){
+  const e=executionConfiguration();
+  if(!e.orchestrated&&!e.fixed)return '';
+  return '<h2>执行配置</h2><p>'+escapeHTML(e.label||'组合选项未记录')+' · 思考 系统固定</p>';
 }
 
 function waitForMode(target){if(mode===target)return Promise.resolve(true);return new Promise(resolve=>{const entry={target,resolve,timer:null};entry.timer=setTimeout(()=>{modeWaiters.delete(entry);resolve(false);},3500);modeWaiters.add(entry);});}
@@ -126,15 +140,16 @@ function workspaceHTML(){const w=detail?.workspace||card?.workspace;if(w?.mode!=
 function taskText(){if(detail?.submission?.prompt)return detail.submission.prompt;const raw=detail?.prompt||'';const match=raw.match(/(?:^|\n)TASK:\n([\s\S]*?)(?=\n(?:OUTPUT CONTRACT|ACCEPTANCE|REFERENCES):|$)/);return match?match[1].trim():raw;}
 function response(){return detail?.report?.response||card?.response||'';}
 function criteria(){return detail?.acceptance?.criteria||detail?.submission?.acceptance||card?.criteria||[];}
-function reviewed(){return ['accepted','rejected'].includes(card?.review);}
+const REVIEW_LABELS={accepted:'已采纳',accepted_with_changes:'修订后采纳',partially_accepted:'部分采纳',revision_requested:'待修改',rejected:'未采纳'};
+function reviewed(){return Object.hasOwn(REVIEW_LABELS,card?.review);}
+function reviewTone(){return ['accepted','accepted_with_changes'].includes(card?.review)?'done':card?.review==='rejected'?'error':reviewed()?'pending':'';}
 function complete(){return ['completed','completed_unreviewed','success'].includes(card?.status);}
 function progressObj(){return detail?.progress||card?.progress||{};}
 function hasErrorState(){const p=progressObj();return ERROR_STATES.has(card?.status)||ERROR_STATES.has(p.stage);}
 function errorReason(){return String(card?.error||detail?.state?.error||'').trim();}
 
 function reviewVerdict(){
-  if(card?.review==='accepted')return '检查通过';
-  if(card?.review==='rejected')return '检查未通过';
+  if(reviewed())return REVIEW_LABELS[card.review];
   if(complete()||response())return '待 Codex 检查';
   if(hasErrorState())return '尚无结果可核对';
   return '待返回后由 Codex 核对';
@@ -142,8 +157,7 @@ function reviewVerdict(){
 
 function reviewLineText(){
   const rawNote=(detail?.acceptance?.note||card?.review_note||'').trim();
-  if(card?.review==='accepted')return rawNote?'通过 · '+clip(rawNote,66):'通过 · Codex 已核对通过';
-  if(card?.review==='rejected')return rawNote?'未通过 · '+clip(rawNote,64):'未通过 · Codex 判定未满足要求（详见检查页）';
+  if(reviewed())return REVIEW_LABELS[card.review]+' · '+(rawNote?clip(rawNote,66):'具体内容见「检查」');
   if(complete()||response())return '待检查 · 等待 Codex 对照要求核对';
   if(hasErrorState())return '尚无有效结果可供核对';
   return '待返回后由 Codex 核对';
@@ -151,9 +165,8 @@ function reviewLineText(){
 
 function statusBadge(){
   if(loadError&&!card)return {text:'读取失败',tone:'error'};
-  if(card?.review==='rejected')return {text:'检查未通过',tone:'error'};
+  if(reviewed())return {text:REVIEW_LABELS[card.review],tone:reviewTone()};
   if(hasErrorState())return {text:'运行需核对',tone:'error'};
-  if(card?.review==='accepted')return {text:'检查通过',tone:'done'};
   if(complete())return {text:'已返回 · 待检查',tone:'pending'};
   const p=progressObj();
   if(card?.status==='running'){
@@ -227,7 +240,7 @@ function progressText(){
 
 function pickDefaultTab(){
   const p=progressObj();
-  if(card?.review==='rejected')return 'review';
+  if(['rejected','partially_accepted','revision_requested'].includes(card?.review))return 'review';
   if(hasErrorState()||p.no_recent_stream_activity||p.requires_attention)return 'progress';
   if(complete()||Boolean(response()))return 'delivery';
   return ['queued','running','cancelling'].includes(card?.status)?'progress':'submission';
@@ -311,15 +324,17 @@ function receive(result){
 
   $('review-line').textContent=reviewLineText();
   $('review-line').dataset.empty=String(!reviewed()&&!complete()&&!hasText);
-  $('review-line').dataset.tone=card.review==='rejected'?'error':card.review==='accepted'?'done':'';
+  $('review-line').dataset.tone=reviewTone();
 
-  document.body.dataset.attention=String(Boolean(hasErrorState()||p.requires_attention||p.no_recent_stream_activity||card.review==='rejected'));
+  document.body.dataset.attention=String(Boolean(hasErrorState()||p.requires_attention||p.no_recent_stream_activity||['rejected','partially_accepted','revision_requested'].includes(card.review)));
 
   let url=null;try{const value=new URL(card.task_view_url);if(value.protocol==='http:'&&value.hostname==='127.0.0.1'&&/^\d+$/.test(value.port)&&value.pathname==='/'&&!value.username&&!value.password&&value.searchParams.get('job')===card.job_id)url=value.href;}catch{}
   if(url){$('link').href=url;$('link').hidden=false;$('url').value=url;}else{$('link').removeAttribute('href');$('link').hidden=true;$('url').value='';}
 
   syncButtons();
-  const runtime=[['任务编号',card.job_id],['模型',card.observed_model||'尚未独立记录'],['请求模型',card.requested_model],['思考强度',({low:'低',medium:'中',high:'高',minimal:'最小'})[card.requested_effort]||card.requested_effort],['创建时间',formatTime(card.created_at)],['记录更新',formatTime(card.updated_at)]];
+  const execution=executionConfiguration();
+  const runtime=[['任务编号',card.job_id],[execution.orchestrated?'已报告组合选项':'模型',card.observed_model||'尚未独立记录'],[execution.orchestrated?'请求组合':'请求模型',execution.label],['思考配置',execution.fixed?'系统固定':({low:'低',medium:'中',high:'高',minimal:'最小'})[card.requested_effort]||card.requested_effort],['创建时间',formatTime(card.created_at)],['记录更新',formatTime(card.updated_at)]];
+  if(execution.orchestrated)runtime.push(['模型记录范围','所选组合选项；未逐步追踪内部规划、执行阶段及其实际后端模型']);
   if(errorReason())runtime.push(['异常原因',errorReason()]);
   $('runtime').innerHTML=runtime.map(([k,v])=>'<dt>'+escapeHTML(k)+'</dt><dd>'+escapeHTML(v||'未记录')+'</dd>').join('');
   $('raw').textContent=JSON.stringify({state:detail?.state||card,progress:detail?.progress||card?.progress,acceptance:detail?.acceptance,warnings:detail?.warnings},null,2);
@@ -332,7 +347,7 @@ function renderTab(animateSwitch=false){
   document.body.dataset.activeTab=tab;
   let html='';const data=detail||{},p=progressObj(),text=response(),checks=criteria();
   if(tab==='submission'){
-    html='<h2>交给 Gemini 做什么</h2><div class="prose">'+(taskText()?markdown(taskText()):'<p class="empty">尚未记录任务说明。</p>')+'</div>';
+    html=executionConfigurationHTML()+'<h2>交给 Gemini 做什么</h2><div class="prose">'+(taskText()?markdown(taskText()):'<p class="empty">尚未记录任务说明。</p>')+'</div>';
     const inputs=Array.isArray(data.inputs)?data.inputs:[];
     html+='<h2>提供的材料</h2>'+(inputs.length?'<ul class="criteria">'+inputs.map(v=>'<li>'+escapeHTML(v.name||'附件')+'</li>').join('')+'</ul>':'<p class="empty">'+(card?.input_count?'共 '+escapeHTML(card.input_count)+' 份材料，具体文件名尚未读取。':'没有单独的附件。')+'</p>');
     html+=workspaceHTML();
@@ -340,7 +355,7 @@ function renderTab(animateSwitch=false){
   }else if(tab==='progress'){
     const done=complete()||Boolean(text),err=hasErrorState(),isPendingReview=done&&!reviewed();
     const step2Sub=err?(p.activity?.current_action?'中断前动作：'+p.activity.current_action+' · 请核对下方记录':'请结合下方运行记录确认异常原因。'):p.no_recent_stream_activity&&card?.status==='running'?'暂未收到新动态，还无法确认 Gemini 是否仍在处理。':done?'已有返回记录，可在「结果」页查看。':'根据已收到的动态更新。';
-    html='<h2>目前进展</h2><ol class="steps"><li class="done">任务已提交<span>'+escapeHTML(formatTime(card?.created_at))+'</span></li><li class="'+(err?'error':done?'done':'current')+'">'+escapeHTML(progressText())+'<span>'+escapeHTML(step2Sub)+'</span></li><li class="'+(done?'done':err?'error':'')+'">'+(text?'已收到返回内容':err?'未收到完整结果':'等待返回结果')+'</li><li class="'+(card?.review==='rejected'?'error':card?.review==='accepted'?'done':isPendingReview?'pending':'')+'">'+escapeHTML(reviewVerdict())+'</li></ol>';
+    html='<h2>目前进展</h2><ol class="steps"><li class="done">任务已提交<span>'+escapeHTML(formatTime(card?.created_at))+'</span></li><li class="'+(err?'error':done?'done':'current')+'">'+escapeHTML(progressText())+'<span>'+escapeHTML(step2Sub)+'</span></li><li class="'+(done?'done':err?'error':'')+'">'+(text?'已收到返回内容':err?'未收到完整结果':'等待返回结果')+'</li><li class="'+(reviewTone()||(isPendingReview?'pending':''))+'">'+escapeHTML(reviewVerdict())+'</li></ol>';
     html+=activityHTML();
     if(p.requires_attention||err){
       const errMsg=errorReason();
@@ -349,8 +364,7 @@ function renderTab(animateSwitch=false){
   }else if(tab==='delivery'){
     html+=fileHTML();
     if(text&&!reviewed())html+='<p class="callout pending">Gemini 已交回结果，等待 Codex 对照任务要求核对。</p>';
-    else if(text&&card?.review==='accepted')html+='<p class="callout done">Codex 已核对通过，核对详情见「检查」。</p>';
-    else if(text&&card?.review==='rejected')html+='<p class="callout error">这份结果未通过检查，原因见「检查」。</p>';
+    else if(text&&reviewed())html+='<p class="callout '+reviewTone()+'">'+escapeHTML(REVIEW_LABELS[card.review])+' · 采用内容与后续处理见「检查」。</p>';
     const isLong=text.length>480||text.split('\n').length>10;
     html+='<h2>Gemini 结果</h2>'+(text?'<div class="prose'+(isLong&&!proseExpanded?' is-clamped':'')+'">'+deliveryHTML(text)+'</div>'+(isLong?'<button type="button" class="quiet prose-toggle" data-prose-toggle>'+(proseExpanded?'收起长文 ↑':'展开全部内容 ↓')+'</button>':''):deliveryFiles().length?'<p class="muted">文件已保存，本次没有附加文字说明。</p>':'<p class="empty">尚未返回结果。当前状态：'+escapeHTML(progressText())+'。</p>');
     if(card?.response_truncated&&!data.report?.response)html+='<p class="muted">当前为部分结果预览，完整内容可在下方浏览器记录链接中查看。</p>';
@@ -359,8 +373,16 @@ function renderTab(animateSwitch=false){
     if(images.length)html+='<h2>生成的图片</h2><p>'+images.length+' 张图片已保存，可在完整记录中查看和下载。</p>';
   }else{
     const reviewNote=reviewed()?(data.acceptance?.note||card?.review_note):'';
-    const tone=card?.review==='accepted'?'done':card?.review==='rejected'?'error':'';
+    const tone=reviewTone();
     html='<h2>Codex 检查结论</h2><p class="review-result"'+(tone?' data-tone="'+tone+'"':'')+'>'+escapeHTML(reviewVerdict())+'</p>'+(reviewNote?'<div class="prose">'+markdown(reviewNote)+'</div>':'<p class="empty">'+(reviewed()?'已记录检查结论，但未附具体核对说明。':'尚未保存检查结论；Gemini 返回结果后，由 Codex 对照下方要求核对。')+'</p>');
+    const review=data.acceptance||{};
+    for(const [label,items] of [['已采纳的内容',review.accepted_items||card?.accepted_items],['还需处理',review.issues||card?.review_issues],['修订说明',review.changes||card?.review_changes]]){
+      if(Array.isArray(items)&&items.length)html+='<h2>'+label+'</h2><ul class="criteria">'+items.map(item=>'<li>'+escapeHTML(item)+'</li>').join('')+'</ul>';
+    }
+    const history=review.history||card?.review_history||[];
+    if(history.length>1)html+='<details data-details-key="review-history"><summary>检查记录 · '+history.length+' 次</summary>'+history.map(entry=>'<h3>'+escapeHTML(REVIEW_LABELS[entry.verdict]||'已记录')+' · '+escapeHTML(formatTime(entry.reviewed_at))+'</h3><p>'+escapeHTML(entry.note)+'</p>').join('')+'</details>';
+    html+=executionConfigurationHTML();
+    if(executionConfiguration().orchestrated)html+='<p class="muted">模型记录表示所选组合选项，未逐步追踪内部规划、执行阶段及其实际后端模型。</p>';
     if(checks.length)html+='<h2>检查依据</h2><p class="muted">'+(reviewed()?'以下是任务开始时约定的要求，具体核对结论见上方说明。':'待 Codex 对照核对的任务要求。')+'</p><ul class="criteria">'+checks.map(v=>'<li>'+escapeHTML(v)+'</li>').join('')+'</ul>';
     const date=reviewed()?(data.acceptance?.reviewed_at||card?.reviewed_at):null;
     if(date)html+='<p class="muted">检查记录于 '+escapeHTML(formatTime(date))+'</p>';
@@ -499,7 +521,7 @@ mainEl.querySelector('.tabs').addEventListener('keydown',event=>{
 // 静默轮询：不触发按钮禁用闪烁，不夺取键盘焦点
 const resizeObserver=new ResizeObserver(()=>{syncTabSlider(false);size();});
 resizeObserver.observe(mainEl);
-function needsLiveRefresh(){return card&&(['queued','running','cancelling'].includes(card.status)||(complete()&&!reviewed()));}
+function needsLiveRefresh(){return card&&(['queued','running','cancelling'].includes(card.status)||(complete()&&!['accepted','accepted_with_changes','rejected'].includes(card.review)));}
 let lastPollAt=0;
 const pollTimer=setInterval(()=>{const now=Date.now(),delay=document.hidden||complete()?15000:2000;if(connected&&needsLiveRefresh()&&!busy&&!polling&&now-lastPollAt>=delay){lastPollAt=now;refreshJob({silent:true});}},2000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&needsLiveRefresh())refreshJob({silent:true});});

@@ -10,37 +10,59 @@ import time
 
 from acp_client import ACPClient, ACPError
 from activity import ActivityWait, waiting_policy
+from model_execution import validate as validate_model_execution
 
 CANCEL_ACK_WAIT_SECONDS = 3
 _TERMINAL_STOP_REASONS = {'end_turn', 'cancelled', 'max_tokens', 'max_turn_requests', 'refusal'}
 
 
-def select_model(client, session, model, effort):
+def select_model(client, session, model, effort, model_execution=None):
+    execution = validate_model_execution({'model':model, 'effort':effort,
+                                          'model_execution':model_execution})
     offered = {x['modelId'] for x in session.get('models', {}).get('availableModels', [])}
-    if model not in offered:
-        raise ValueError('Requested model is not offered by this ACP session')
     options = {o['id']: o for o in session.get('configOptions', [])}
+    preselected=False
+    if execution is not None and not offered and not options.get('model'):
+        # Some fresh sessions omit the legacy model list until account bootstrap.
+        # A configuration request is zero-generation. Require the provider's
+        # exact option list AND acknowledgement, never infer from the local ID.
+        updated=client.request('session/set_config_option',
+                               {'sessionId':session['sessionId'],'configId':'model','value':model},timeout=45)
+        options={o['id']:o for o in updated.get('configOptions',[])}
+        option=options.get('model',{})
+        if option.get('currentValue')!=model or model not in {o.get('value') for o in option.get('options',[])}:
+            raise ValueError('ACP model configuration is not ready; no provider prompt was sent')
+        preselected=True
     bases = [o['value'] for o in options.get('model', {}).get('options', [])
-             if o.get('value') == model or model == o.get('value', '')+'-'+effort]
+             if o.get('value') == model or (execution is None and model == o.get('value', '')+'-'+effort)]
+    if model not in offered and (offered or not bases):
+        raise ValueError('Requested model is not offered by this ACP session')
     if len(bases) != 1:
         raise ValueError('Cannot bind the exact ACP model and thinking level')
     sid = session['sessionId']
-    for key, value in [('model', bases[0]), ('thought_level', effort)]:
+    expected = [('model', bases[0])]
+    if execution is None:
+        expected.append(('thought_level', effort))
+    for key, value in expected:
+        if preselected and key=='model':continue
         updated = client.request('session/set_config_option',
                                  {'sessionId':sid, 'configId':key, 'value':value}, timeout=45)
         options = {o['id']:o for o in updated.get('configOptions', [])}
         if options.get(key, {}).get('currentValue') != value:
             raise ValueError('ACP did not acknowledge selected '+key)
     if any(options.get(key, {}).get('currentValue') != value
-           for key, value in [('model', bases[0]), ('thought_level', effort)]):
+           for key, value in expected):
         raise ValueError('ACP final model_identity_mismatch: model or thought_level changed')
+    if execution is not None:
+        options.pop('thought_level', None)
     return {'model':model, 'effort':effort, 'base_model':bases[0], 'matches':True,
-            'source':'ACP offered model and acknowledged session config', 'config_options':options}
+            'source':'ACP offered model and acknowledged session config', 'config_options':options,
+            **({'model_execution':copy.deepcopy(execution)} if execution is not None else {})}
 
 
 def run(root, profile, prompt, job, *, cancel=None, on_process=None, before_execute=None,
         workspace_record=None, workspace_environment=None, workspace_mcp_servers=None, on_session_ready=None):
-    from bridge import atomic_json, cli_environment, ensure_account_route, prepare_task_agent, check_output, VERSION, provider_failure_details, GENERATION_EXIT_GRACE_SECONDS
+    from bridge import atomic_json, cli_environment, ensure_account_route, prepare_task_agent, check_output, VERSION, provider_failure_details, provider_execution_aborted, GENERATION_EXIT_GRACE_SECONDS
     from run_control import registry as controls
     workspace_mode=workspace_record is not None
     if profile.get('workspace') is not None and not workspace_mode:
@@ -118,8 +140,11 @@ def run(root, profile, prompt, job, *, cancel=None, on_process=None, before_exec
         elif kind=='config_option_update':
             atomic_json(job/'acp-last-config.json',update)
             if selection is not None:
-                selection['config_options'].update({o['id']:o for o in update.get('configOptions', [])})
-                expected={'model':selection['base_model'], 'thought_level':profile['effort']}
+                selection['config_options'].update({o['id']:o for o in update.get('configOptions', [])
+                    if o['id'] != 'thought_level' or not selection.get('model_execution')})
+                expected={'model':selection['base_model']}
+                if not selection.get('model_execution'):
+                    expected['thought_level']=profile['effort']
                 if any(selection['config_options'].get(key,{}).get('currentValue') != value
                        for key,value in expected.items()):
                     selection['matches']=False
@@ -151,7 +176,7 @@ def run(root, profile, prompt, job, *, cancel=None, on_process=None, before_exec
         session['sessionId']=sid
         atomic_json(job/'acp-session.json',session)
         if on_session_ready:on_session_ready(sid)
-        selected=select_model(client,session,profile['model'],profile['effort'])
+        selected=select_model(client,session,profile['model'],profile['effort'],profile.get('model_execution'))
         # Flush legitimate intermediate setting updates before tracking drift.
         client.drain_notifications(timeout=5)
         selection=selected
@@ -261,6 +286,9 @@ def run(root, profile, prompt, job, *, cancel=None, on_process=None, before_exec
     if failure:issues.append('acp_error: '+failure)
     if selection is not None and not selection['matches']:issues.append('model_identity_mismatch')
     provider_error_category,provider_error_message=provider_failure_details(error_evidence)
+    if provider_execution_aborted(response):
+        provider_error_category='provider_execution_aborted'
+        provider_error_message='CLI 报告执行因错误终止，尚无可验收的交付；正常结束标记不代表生成成功。'
     if error_evidence and error_evidence.get('kind') in ('eof','transport','closed','timeout','protocol'):
         provider_error_category='transport_interrupted'
         provider_error_message='ACP连接中断，远端执行结果尚未确认。'
@@ -280,9 +308,10 @@ def run(root, profile, prompt, job, *, cancel=None, on_process=None, before_exec
             'observed_model':(selection['model'] if selection['matches'] else selection['config_options'].get('model',{}).get('currentValue')) if selection else None,
             'model_matches':bool(selection and selection['matches']),
             'model_verification':'ACP offered variant and acknowledged session configuration',
-            'effort_verification':'ACP thinking-level acknowledgement; no independent backend trace',
+            'effort_verification':('ACP fixed model configuration acknowledgement; effort is not adjustable; no independent backend trace'
+                if profile.get('model_execution') else 'ACP thinking-level acknowledgement; no independent backend trace'),
             'selected_agent':agent,'observed_agent':None,'agent_verification':'configured custom agent and observed tool calls',
-            'native_status':'SUCCESS' if reason=='end_turn' and not failure and provider_turns_terminal and not any(x.startswith('steering_stop_reason:') for x in issues) else 'ERROR',
+            'native_status':'SUCCESS' if reason=='end_turn' and not failure and not provider_error_category and provider_turns_terminal and not any(x.startswith('steering_stop_reason:') for x in issues) else 'ERROR',
             'provider_turns_terminal':provider_turns_terminal,'all_prompts_terminal':provider_turns_terminal,
             'remote_terminal_proven':provider_turns_terminal,
             'steering_terminal_evidence':steering_evidence,
@@ -300,6 +329,8 @@ def run(root, profile, prompt, job, *, cancel=None, on_process=None, before_exec
             'billing':'existing account route; charge not independently verified',
             'image_input_count':sum(i['kind']=='image' for i in json.loads((job/'inputs.json').read_text())),
             'artifact_review':'pending'}
+    if profile.get('model_execution') is not None:
+        report['model_execution']=copy.deepcopy(profile['model_execution'])
     report['steering']=controls.records(job.name)
     atomic_json(job/'report.json',report)
     event({'event':'result','result':{'status':report['native_status'],'response':response,'error':failure}})

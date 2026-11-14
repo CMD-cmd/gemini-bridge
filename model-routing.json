@@ -53,7 +53,9 @@
     "effort_units": {
       "low": 1,
       "medium": 2,
-      "high": 3
+      "high": 3,
+      "xhigh": 4,
+      "fixed": 3
     },
     "limits_enabled": false
   },
@@ -178,7 +180,16 @@
       },
       "mode": "activity",
       "activity_grace_seconds": 300,
-      "quiet_grace_seconds": 300
+      "quiet_grace_seconds": 300,
+      "effort_overrides": {
+        "fixed": {
+          "max_seconds": 1800,
+          "default_seconds": 1200,
+          "quiet_notice_seconds": 180,
+          "activity_grace_seconds": 300,
+          "quiet_grace_seconds": 300
+        }
+      }
     }
   },
   "access": {
@@ -245,6 +256,12 @@
         }
       ],
       "complex": [
+        {
+          "family": "orchestrator",
+          "efforts": [
+            "fixed"
+          ]
+        },
         {
           "family": "reasoning",
           "efforts": [
@@ -409,6 +426,12 @@
       ],
       "standard": [
         {
+          "family": "orchestrator",
+          "efforts": [
+            "fixed"
+          ]
+        },
+        {
           "family": "reasoning",
           "efforts": [
             "medium",
@@ -425,6 +448,12 @@
         }
       ],
       "complex": [
+        {
+          "family": "orchestrator",
+          "efforts": [
+            "fixed"
+          ]
+        },
         {
           "family": "reasoning",
           "efforts": [

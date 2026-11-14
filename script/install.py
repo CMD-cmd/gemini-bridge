@@ -37,7 +37,7 @@ def main(argv=None):
     parser.add_argument('--check', action='store_true', help='Read-only prerequisite check')
     parser.add_argument('--cli', help='Path to an already-installed official agy executable')
     parser.add_argument('--model', help='Exact identifier from your own agy models output')
-    parser.add_argument('--effort', choices=('low', 'medium', 'high', 'xhigh', 'max'))
+    parser.add_argument('--effort', choices=('low', 'medium', 'high', 'xhigh', 'max', 'fixed'))
     parser.add_argument('--setup', action='store_true')
     parser.add_argument('--skip-dependencies', action='store_true', help='Use an existing environment')
     parser.add_argument('--install-skills', action='store_true')
@@ -71,6 +71,13 @@ def main(argv=None):
         parser.error('This exact combination is absent from the example policy. Supply a reviewed policy; do not infer eligibility from catalog presence.')
     if args.install_skills and (args.codex_home/'skills/gemini-bridge').exists():
         parser.error('An installed gemini-bridge Skill exists; no files were replaced.')
+    profile={'model': args.model, 'effort': args.effort, 'timeout_seconds': 600}
+    if args.effort=='fixed':
+        if not args.adopt_example_policy:
+            parser.error('A fixed configuration requires an explicitly adopted exact model execution policy.')
+        sys.path.insert(0,str(ROOT))
+        from model_execution import bind
+        profile=bind(profile,policy['external_models'].get(key))
     if not args.skip_dependencies:
         env = ROOT/'.venv-http'
         if not (env/'bin/python').exists():
@@ -83,7 +90,7 @@ def main(argv=None):
             raise ValueError('bin/agy already points elsewhere; it was preserved.')
     else:
         link.symlink_to(cli.resolve())
-    write_new(ROOT/'profile.json', {'model': args.model, 'effort': args.effort, 'timeout_seconds': 600})
+    write_new(ROOT/'profile.json', profile)
     if args.adopt_example_policy:
         if args.subscription_exceptions:
             for field in ('external_subscription_exception', 'external_specialist_exception'):

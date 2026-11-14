@@ -68,6 +68,20 @@ class GuardTests(unittest.TestCase):
         self.decision('replace_file_content', {'TargetFile': str(self.source / 'a.txt')}, 'deny')
         self.assertNotIn('secret body', Path(self.policy['audit_path']).read_text())
 
+    def test_current_native_write_edit_aliases_preserve_same_scope(self):
+        for name,body in [('write_file',{'Content':'private text','Overwrite':False}),
+                          ('edit_file',{'Target':'before','Replacement':'after'})]:
+            with self.subTest(tool=name):
+                target=self.output/'allowed.txt'
+                self.decision(name,{'Path':str(target),**body})
+                self.decision(name,{'Path':str(self.source/'original.txt'),**body},'deny')
+                self.decision(name,{'Path':str(self.output/'.env'),**body},'deny')
+                self.decision(name,{'Path':'relative.txt',**body},'deny')
+                self.decision(name,{'TargetFile':str(target),**body},'deny')
+                link=self.output/(name+'-escape');link.symlink_to(self.root/'outside.txt')
+                self.decision(name,{'Path':str(link),**body},'deny')
+        self.assertNotIn('private text',Path(self.policy['audit_path']).read_text())
+
     def test_prefix_symlink_hardlink(self):
         self.decision('view_file', {'AbsolutePath': str(self.root / 'source-evil/a')}, 'deny')
         (self.output / 'escape').symlink_to(self.root)

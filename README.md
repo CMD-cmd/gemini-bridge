@@ -32,6 +32,8 @@ Gemini Bridge 用于在 macOS 本机将 Codex 与官方 Antigravity CLI（`agy`�
 
 当前模型映射已更新为 **Carbon（高档）与 Hydrogen（低档）**，详见[模型更新与验证范围](docs/MODEL_UPDATES.md)。
 
+需要规划、实现和运行检查的授权工作区任务，也可由 Codex 动态选择 **Orchestrator (Carbon)**：同一会话内以 Carbon 规划／复核、Hydrogen 执行，使用系统固定配置。已验证真实实现、测试修正、取消与续聊；普通单模型通道继续保留，详见[使用与边界](skills/gemini-bridge/references/orchestrator.md)。
+
 ## 输入框里的入口
 
 - `@Gemini Bridge`：彩色 Gemini 图标的插件入口。
@@ -96,7 +98,7 @@ python3 script/install.py --setup \
 ```
 
 - 该命令会在仓库内创建 `.venv-http` 虚拟环境并安装 `requirements-http.lock` 依赖、建立 `bin/agy` 符号链接、生成 `profile.json`（权限 `0600`）和 `routing/policy.json`（权限 `0600`），并将主 Skill 安装到 `~/.codex/skills/gemini-bridge`。
-- `--adopt-example-policy` 表示显式采用仓库附带的带日期示例策略（`routing/policy.example.json`，版本 `2026-10-31.v11`）；若你选取的模型组合不在该示例策略中，脚本会停止并要求你提供经审阅的策略文件，而不会仅凭模型出现在 CLI 目录中就自动放行。
+- `--adopt-example-policy` 表示显式采用仓库附带的带日期示例策略（`routing/policy.example.json`，版本 `2026-11-14.orchestrator-example`）；若你选取的模型组合不在该示例策略中，脚本会停止并要求你提供经审阅的策略文件，而不会仅凭模型出现在 CLI 目录中就自动放行。
 - `--subscription-exceptions`（需配合 `--adopt-example-policy`）表示显式启用示例策略中的会员路线与专用模型例外配置；若不加该参数，示例策略中的例外保持关闭（`enabled: false`）。启用该配置不等同于验证了你的 Google 账户额度，也不会绕过每次聊天的显式授权。
 
 ### 4. 启动本地 HTTP MCP 并接入 Codex

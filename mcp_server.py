@@ -88,7 +88,7 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {
          "prompt": {"type": "string", "minLength": 1, "maxLength": LIMITS["MAX_PROMPT_CHARS"]},
          "model": {"type": "string", "minLength": 1},
-         "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max"]}},
+         "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max", "fixed"]}},
          "required": ["prompt"], "additionalProperties": False}},
     {"name": "bridge_report", "description": "Read the compact report for an existing local bridge job.",
      "inputSchema": {"type": "object", "properties": {"job_id": {"type": "string"}},
@@ -110,7 +110,7 @@ TOOLS += [
          "timeout_seconds": {"type": "integer", "minimum": 10, "maximum": 1800, "description": "Soft generation budget from CLI launch, excluding queue/preflight. New stream progress can extend the same call within the configured tier/effort hard cap (ordinary low600s, high/xhigh at most1800s). Unknown silence is not evidence of cloud activity. Short status/watch windows never cancel generation."},
          "files": {"type": "array", "items": {"type": "string"}, "maxItems": LIMITS["MAX_FILES"]},
          "acceptance": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
-         "model": {"type": "string"}, "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max"]},
+         "model": {"type": "string"}, "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh", "max", "fixed"]},
          "dispatch_mode": {"type": "string", "enum": ["manual", "auto"]},
          "workspace":dict(WORKSPACE_SCHEMA,description="Native workspace execution. Empty object uses this task's explicit directory grant; omitted preserves the existing material handoff."),
          "task_id": {"type": "string"}, "thread_id": {"type": "string"},
@@ -124,8 +124,8 @@ TOOLS += [
      "inputSchema": {"type": "object", "properties": {"job_id": {"type": "string"}}, "required": ["job_id"], "additionalProperties": False}},
     {"name": "bridge_cancel", "description": "Cancel a queued or running task. Running cancellation terminates the CLI process group; confirm terminal status afterwards.",
      "inputSchema": {"type": "object", "properties": {"job_id": {"type": "string"}}, "required": ["job_id"], "additionalProperties": False}},
-    {"name": "bridge_review", "description": "Record the actual reviewer verdict after checking the deliverable against acceptance criteria. Native SUCCESS alone is not acceptance.",
-     "inputSchema": {"type": "object", "properties": {"job_id": {"type": "string"}, "verdict": {"type": "string", "enum": ["accepted", "rejected"]}, "note": {"type": "string"}}, "required": ["job_id", "verdict", "note"], "additionalProperties": False}},
+    {"name": "bridge_review", "description": "Record a content-level review: adopt sound parts, revise locally or request explanation/correction for issues, and review again. Supports accepted, accepted_with_changes, partially_accepted, revision_requested and rejected; preserves review history separately from execution status. Minor style issues alone need not reject useful work.",
+     "inputSchema": {"type": "object", "properties": {"job_id": {"type": "string"}, "verdict": {"type": "string", "enum": ["accepted", "accepted_with_changes", "partially_accepted", "revision_requested", "rejected"]}, "note": {"type": "string"}, **{key:{"type":"array","items":{"type":"string"},"description":description} for key,description in (("accepted_items","Sound parts adopted and retained"),("issues","Specific unresolved questions or corrections"),("changes","Codex revisions or explained changes in the adopted version"))}}, "required": ["job_id", "verdict", "note"], "additionalProperties": False}},
     {"name": "bridge_jobs", "description": "List recent queue records without returning their prompts or raw logs.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}}
 ]
@@ -206,7 +206,7 @@ def call_tool(name, args):
         if name == "bridge_cancel":
             return service_request(path + "/cancel", {})
         if name == "bridge_review":
-            return service_request(path + "/review", {"verdict": args["verdict"], "note": args["note"]})
+            return service_request(path + "/review", {key:args[key] for key in ('verdict','note','accepted_items','issues','changes') if key in args})
         return service_request(path)
     if name == "bridge_models":
         return service_request("/models")
@@ -226,7 +226,7 @@ def call_tool(name, args):
         if "model" in args:
             if not isinstance(args["model"], str) or not args["model"].strip():
                 raise ValueError("Invalid model")
-            if args["effort"] not in ("low", "medium", "high", "xhigh", "max"):
+            if args["effort"] not in ("low", "medium", "high", "xhigh", "max", "fixed"):
                 raise ValueError("Invalid effort")
             profile.update(model=args["model"], effort=args["effort"])
         submitted = service_request("/jobs", {"prompt": prompt, "kind": "copy",

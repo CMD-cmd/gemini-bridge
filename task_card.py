@@ -7,10 +7,10 @@ import anyio
 from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
-URI = 'ui://gemini-bridge/task-card-v9.html'
-PANEL_URI = 'ui://gemini-bridge/native-panel-v9.html'
-LEGACY_PANEL_URIS = ('ui://gemini-bridge/native-panel-v8.html', 'ui://gemini-bridge/native-panel-v7.html', 'ui://gemini-bridge/native-panel-v6.html', 'ui://gemini-bridge/native-panel-v5.html', 'ui://gemini-bridge/native-panel-v4.html', 'ui://gemini-bridge/native-panel-v3.html', 'ui://gemini-bridge/native-panel-probe-v1.html', 'ui://gemini-bridge/native-panel-v2.html')
-LEGACY_URIS = ('ui://gemini-bridge/task-card-v8.html', 'ui://gemini-bridge/task-card-v7.html', 'ui://gemini-bridge/task-card-v6.html', 'ui://gemini-bridge/task-card-v5.html', 'ui://gemini-bridge/task-card-v4.html', 'ui://gemini-bridge/task-card-v3.html', 'ui://gemini-bridge/task-card-v1.html', 'ui://gemini-bridge/task-card-v2.html')
+URI = 'ui://gemini-bridge/task-card-v10.html'
+PANEL_URI = 'ui://gemini-bridge/native-panel-v10.html'
+LEGACY_PANEL_URIS = ('ui://gemini-bridge/native-panel-v9.html', 'ui://gemini-bridge/native-panel-v8.html', 'ui://gemini-bridge/native-panel-v7.html', 'ui://gemini-bridge/native-panel-v6.html', 'ui://gemini-bridge/native-panel-v5.html', 'ui://gemini-bridge/native-panel-v4.html', 'ui://gemini-bridge/native-panel-v3.html', 'ui://gemini-bridge/native-panel-probe-v1.html', 'ui://gemini-bridge/native-panel-v2.html')
+LEGACY_URIS = ('ui://gemini-bridge/task-card-v9.html', 'ui://gemini-bridge/task-card-v8.html', 'ui://gemini-bridge/task-card-v7.html', 'ui://gemini-bridge/task-card-v6.html', 'ui://gemini-bridge/task-card-v5.html', 'ui://gemini-bridge/task-card-v4.html', 'ui://gemini-bridge/task-card-v3.html', 'ui://gemini-bridge/task-card-v1.html', 'ui://gemini-bridge/task-card-v2.html')
 MIME = 'text/html;profile=mcp-app'
 ROOT = Path(__file__).resolve().parent
 META = {'ui': {'resourceUri': URI}, 'openai/outputTemplate': URI}
@@ -50,6 +50,25 @@ def delivery_sources(entries, manifest):
             else dict(entry) for entry in entries or [] if isinstance(entry,dict)]
 
 
+def model_execution(value):
+    """Public configuration only; component declarations are not runtime traces."""
+    for source in (value.get('state'), value.get('report'), value.get('profile'), value):
+        if not isinstance(source, dict):
+            continue
+        metadata = source.get('model_execution')
+        if not isinstance(metadata, dict):
+            continue
+        result = {key: metadata[key] for key in ('mode', 'effort_mode', 'label')
+                  if isinstance(metadata.get(key), str)}
+        components = metadata.get('components')
+        if isinstance(components, list):
+            result['components'] = [{key: item[key] for key in ('role', 'model', 'label')
+                                     if isinstance(item.get(key), str)}
+                                    for item in components if isinstance(item, dict)]
+        return result
+    return {}
+
+
 def panel_snapshot(job_id):
     from viewer import Observer, pick, SUMMARY_KEYS
     observer=Observer(ROOT)
@@ -57,9 +76,9 @@ def panel_snapshot(job_id):
     manifest=observer.read(observer.job(job_id),'deliverables.json',[])
     detail['deliverables']=delivery_sources(detail.get('deliverables'),manifest if isinstance(manifest,list) else [])
     return {**{key:detail.get(key) for key in ('prompt','inputs','progress','acceptance','workspace','deliverables')},
-            'state':pick(detail.get('state'), SUMMARY_KEYS),
+            'state':{**pick(detail.get('state'), SUMMARY_KEYS), 'model_execution':model_execution(detail)},
             'report':{key:(detail.get('report') or {}).get(key) for key in
-                      ('response','observed_model','duration_seconds','usage')},
+                      ('response','observed_model','duration_seconds','usage','model_execution')},
             'warnings':detail.get('warnings') or []}
 
 
@@ -71,7 +90,10 @@ def compact_card(value, acceptance=None):
     acceptance = acceptance if isinstance(acceptance, dict) else {}
     return {'job_id': state.get('job_id'), 'title': state.get('title') or state.get('job_id'),
             'status': state.get('status'), 'review': state.get('review', 'pending'),
-            'requested_model': state.get('model'), 'requested_effort': state.get('effort'),
+            'requested_model': state.get('model') or (value.get('profile') or {}).get('model'),
+            'requested_effort': state.get('effort') or (value.get('profile') or {}).get('effort'),
+            'model_execution': model_execution(value),
+            'execution_label': state.get('execution_label') or report.get('execution_label') or (value.get('profile') or {}).get('execution_label'),
             'observed_model': report.get('observed_model') or progress.get('observed_model'),
             'response': report.get('response') or '',
             'response_truncated': bool(report.get('response_truncated')),
@@ -82,6 +104,11 @@ def compact_card(value, acceptance=None):
             'deliverables':value.get('deliverables') or [],
             'criteria': acceptance.get('criteria') or state.get('acceptance') or [],
             'review_note': acceptance.get('note'), 'reviewed_at': acceptance.get('reviewed_at'),
+            'accepted_items': acceptance.get('accepted_items') or [],
+            'review_issues': acceptance.get('issues') or [],
+            'review_changes': acceptance.get('changes') or [],
+            'review_history': [{key:entry[key] for key in ('verdict','note','reviewed_at') if key in entry}
+                               for entry in acceptance.get('history',[]) if isinstance(entry,dict)],
             'error': state.get('error'),
             'task_view_url': value.get('task_view_url'),
             'progress': {key:progress[key] for key in ('stage','label','reported_status','requires_attention',

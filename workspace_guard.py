@@ -18,8 +18,11 @@ import uuid
 READ_TOOLS = {'view_file': 'AbsolutePath', 'read_file': 'Path', 'list_dir': 'DirectoryPath',
               'find_by_name': 'SearchDirectory', 'grep_search': 'SearchPath'}
 WRITE_TOOLS = {'write_to_file': 'TargetFile', 'replace_file_content': 'TargetFile',
-               'multi_replace_file_content': 'TargetFile'}
-allowed_tools = tuple((*READ_TOOLS, *WRITE_TOOLS, 'run_command', 'command_status'))
+               'multi_replace_file_content': 'TargetFile',
+               'write_file': 'Path', 'edit_file': 'Path'}
+# Guard aliases are not duplicated in agent declarations: CLI1.5.8 resolves
+# legacy declarations to these native names before invoking the same path gate.
+allowed_tools = tuple((*READ_TOOLS, *(n for n in WRITE_TOOLS if n not in ('write_file','edit_file')), 'run_command', 'command_status'))
 ALLOWED_TOOLS = allowed_tools
 BLOCKED = {'.agents', '.codex', '.git', '.ssh', '.aws', '.azure', '.gnupg',
            '.gemini', '.config', '.npmrc', '.netrc', '.pypirc', 'credentials',
@@ -135,7 +138,8 @@ def _identity(policy, payload, state, active=True):
     if state.get('conversation_id') and conversation!=state['conversation_id'] and policy.get('native_subagents'):
         from native_children import resolve_child
         return resolve_child(policy,payload,state)
-    if payload.get('modelName') != policy['model']:
+    from model_execution import tool_identity_allowed
+    if not tool_identity_allowed(policy, payload.get('modelName')):
         raise ValueError('Unexpected model')
     workspaces = payload.get('workspacePaths')
     if not isinstance(workspaces, list) or str(job) not in workspaces:

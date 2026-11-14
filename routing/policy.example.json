@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-14.example-model-refresh",
+  "version": "2026-11-14.orchestrator-example",
   "basis": "AA v4.3.2 exact raw scores and task costs; empirical dual ceiling, not billing enforcement",
   "index_version": "v4.3.2",
   "cost_basis": "AA Intelligence Index USD per task",
@@ -813,6 +813,68 @@
         "published_time_minutes_per_task_rounded": 14.3,
         "retrieved_at": "2026-11-14T02:26:57.666792+00:00"
       }
+    },
+    "gemini-pro-orchestrator/fixed": {
+      "model": "gemini-pro-orchestrator",
+      "reasoning_effort": "fixed",
+      "label": "Orchestrator (Carbon)",
+      "score": null,
+      "cost_usd_per_task": null,
+      "time_seconds_per_task": null,
+      "index_version": null,
+      "routing_family": "orchestrator",
+      "routing_priority": 200,
+      "automatic_eligible": true,
+      "usage_tier": "high",
+      "allowed_kinds": [
+        "copy",
+        "english",
+        "extract",
+        "code-map",
+        "visual",
+        "prototype"
+      ],
+      "specialist_only": true,
+      "routing_role": "scarce_specialist",
+      "model_execution": {
+        "mode": "orchestrated",
+        "effort_mode": "fixed",
+        "label": "Carbon 规划 · Hydrogen 执行",
+        "components": [
+          {
+            "role": "planner",
+            "model": "gemini-4-carbon",
+            "label": "Carbon"
+          },
+          {
+            "role": "executor",
+            "model": "gemini-4-hydrogen",
+            "label": "Hydrogen"
+          }
+        ],
+        "tool_model_names": [
+          "gemini-pro-orchestrator"
+        ]
+      },
+      "requires_workspace_execution": true,
+      "source_url": "https://antigravity.google/docs/models#orchestrator",
+      "retrieved_at": "2026-11-14T03:05:51.633512+00:00",
+      "qualification": "ACP fixed configuration, guarded workspace implementation and correction, continuation and cancellation validated on macOS with CLI1.5.8.",
+      "benchmark_note": "Composite mode has no independent comparable AA score; never borrow Carbon High metrics.",
+      "runtime_qualification": {
+        "status": "qualified",
+        "verified_at": "2026-11-14",
+        "cli_version": "1.5.8",
+        "transport": "acp",
+        "verified_capabilities": [
+          "isolated_workspace",
+          "guarded_tools",
+          "plan_implement_test_correct",
+          "same_conversation_continuation",
+          "cancel_ack_and_command_reap"
+        ],
+        "backend_component_trace": "not_exposed"
+      }
     }
   },
   "external_subscription_exception": {
@@ -845,7 +907,8 @@
       "gemini-4-hydrogen-low/low",
       "gemini-4-hydrogen-medium/medium",
       "gemini-4-hydrogen-high/high",
-      "gemini-4-hydrogen-xhigh/xhigh"
+      "gemini-4-hydrogen-xhigh/xhigh",
+      "gemini-pro-orchestrator/fixed"
     ],
     "allowed_purposes": {
       "tone_polish": {
@@ -918,7 +981,8 @@
           "low",
           "medium",
           "high",
-          "xhigh"
+          "xhigh",
+          "fixed"
         ],
         "kinds": [
           "copy",
@@ -957,7 +1021,8 @@
       "gemini-4-hydrogen-low/low": "low",
       "gemini-4-hydrogen-medium/medium": "low",
       "gemini-4-hydrogen-high/high": "low",
-      "gemini-4-hydrogen-xhigh/xhigh": "low"
+      "gemini-4-hydrogen-xhigh/xhigh": "low",
+      "gemini-pro-orchestrator/fixed": "high"
     }
   },
   "external_ultra_routing": {

@@ -43,7 +43,7 @@ def load_config(root=None):
  validate_waiting(config['waiting'])
  if set(config['preferences']) != {'routine','standard','complex'}:raise ValueError('Invalid complexity preferences')
  for complexity,prefs in config['preferences'].items():
-  if not prefs or any(not isinstance(x,dict) or set(x)!={'family','efforts'} or not isinstance(x['family'],str) or not x['efforts'] or any(e not in ('low','medium','high','xhigh','max') for e in x['efforts']) for x in prefs):raise ValueError('Invalid family/effort preference')
+  if not prefs or any(not isinstance(x,dict) or set(x)!={'family','efforts'} or not isinstance(x['family'],str) or not x['efforts'] or any(e not in ('low','medium','high','xhigh','max','fixed') for e in x['efforts']) for x in prefs):raise ValueError('Invalid family/effort preference')
   if type(config['timeouts'].get(complexity)) is not int or not 10<=config['timeouts'][complexity]<=600:raise ValueError('Invalid automatic timeout')
  if any(x not in config['preferences'] for x in config['kind_complexity'].values()):raise ValueError('Invalid kind complexity')
  for purpose,route in config['specialist_routes'].items():
@@ -53,7 +53,7 @@ def load_config(root=None):
  for kind,levels in config.get('general_preferences',{}).items():
   if kind not in task_mode.KINDS or not isinstance(levels,dict) or set(levels)-set(config['preferences']):raise ValueError('Invalid general capability route')
   for prefs in levels.values():
-   if not isinstance(prefs,list) or not prefs or any(not isinstance(p,dict) or set(p)!={'family','efforts'} or not isinstance(p['family'],str) or not isinstance(p['efforts'],list) or not p['efforts'] or any(e not in ('low','medium','high') for e in p['efforts']) for p in prefs):raise ValueError('Invalid capability effort preferences')
+   if not isinstance(prefs,list) or not prefs or any(not isinstance(p,dict) or set(p)!={'family','efforts'} or not isinstance(p['family'],str) or not isinstance(p['efforts'],list) or not p['efforts'] or any(e not in ('low','medium','high','xhigh','max','fixed') for e in p['efforts']) for p in prefs):raise ValueError('Invalid capability effort preferences')
  return config
 
 def validate_waiting(waiting):
@@ -77,7 +77,7 @@ def validate_waiting(waiting):
  # Optional effort budgets preserve the ordinary tier cap while allowing slower thinking modes.
  for tier,row in waiting.items():
   overrides=row.get('effort_overrides',{})
-  if not isinstance(overrides,dict) or set(overrides)-{'low','medium','high','xhigh','max'}:raise ValueError('Invalid effort waiting overrides')
+  if not isinstance(overrides,dict) or set(overrides)-{'low','medium','high','xhigh','max','fixed'}:raise ValueError('Invalid effort waiting overrides')
   for effort,extra in overrides.items():
    if not isinstance(extra,dict) or set(extra)-{'max_seconds','default_seconds','quiet_notice_seconds','activity_grace_seconds','quiet_grace_seconds'}:raise ValueError('Invalid effort budget fields')
    cap=extra.get('max_seconds',row['max_seconds'])
@@ -92,11 +92,14 @@ def waiting_for(tier,effort,fallback_seconds=180,*,requested=None,config=None):
  if tier not in ('low','high'):raise ValueError('Unknown model waiting tier')
  row=config['waiting'][tier]
  if requested is not None and (type(requested) is not int or not 10<=requested<=MAX_GENERATION_SECONDS):raise ValueError('Invalid requested generation timeout')
- if tier=='high':
+ extra=row.get('effort_overrides',{}).get(effort,{})
+ if effort=='fixed':
+  if 'default_seconds' not in extra:raise ValueError('Fixed configuration requires its own waiting budget')
+  default=extra['default_seconds'];quiet=extra.get('quiet_notice_seconds',180)
+ elif tier=='high':
   if effort not in row['effort_seconds']:raise ValueError('Unknown high-tier effort waiting policy')
   default=row['effort_seconds'][effort];quiet=row['quiet_notice_seconds'][effort]
  else:default=fallback_seconds;quiet=row['quiet_notice_seconds']
- extra=row.get('effort_overrides',{}).get(effort,{})
  cap=extra.get('max_seconds',row['max_seconds']);default=extra.get('default_seconds',default);quiet=extra.get('quiet_notice_seconds',quiet)
  seconds=min(cap,requested if requested is not None else default)
  return {'usage_tier':tier,'timeout_seconds':seconds,'max_seconds':cap,
@@ -118,7 +121,7 @@ def budget_status(task_id=None,effort=None):
  try:return SpecialistBudget(ROOT).status(load_config()['specialist_budget'],task_id=task_id,effort=effort)
  except (ValueError,OSError) as error:return {'allowed':False,'reason':'Specialist budget unavailable: '+str(error)}
 
-def candidates(thread_id,kind,complexity,*,catalog=None,executing=False,task_purpose='general',material_bytes=0,task_id=None,allowed_model_tiers=None):
+def candidates(thread_id,kind,complexity,*,catalog=None,executing=False,task_purpose='general',material_bytes=0,task_id=None,allowed_model_tiers=None,workspace=None):
  config=load_config()
  if task_purpose not in PURPOSES:raise ValueError('Unsupported task_purpose')
  route=config['specialist_routes'].get(task_purpose)
@@ -138,6 +141,7 @@ def candidates(thread_id,kind,complexity,*,catalog=None,executing=False,task_pur
   reason=None;decision=None;budget=None
   tier=record.get('usage_tier','high')
   if tier not in allowed_model_tiers:reason='Model tier is outside this task scope; explicit Gemini chat opt-in permits both tiers unless the user limits them'
+  elif record.get('requires_workspace_execution') and (workspace is None or not workspace.get('commands') or workspace.get('subagents')):reason='Composite auto preference requires a scoped implementation workspace with commands and no native children'
   elif record.get('model') not in available:reason='Not reported by live CLI catalog'
   elif specialist and tier!=policy.get('external_specialist_exception',{}).get('allowed_usage_tiers',{}).get(record['model']+'/'+effort,'high'):reason='Model tier differs from its exact approved exception mapping'
   elif specialist and record.get('routing_role')!=route.get('routing_role'):reason='Model is not assigned to this specialist role'
@@ -154,16 +158,16 @@ def candidates(thread_id,kind,complexity,*,catalog=None,executing=False,task_pur
    decision=task_mode.runtime_decision(thread_id,{'model':record['model'],'effort':effort},**kwargs)
    if decision.get('policy_sha256') != hashlib.sha256(raw).hexdigest():raise ValueError('Policy changed during model selection; retry read-only selection')
    if not decision.get('enabled'):reason=decision.get('reason','Policy gate rejected')
-  rows.append({'model':record['model'],'effort':effort,'tier':tier,'eligible':reason is None,'reason':reason,'decision':decision,'rank':rank,'priority':record.get('routing_priority',0),'score':record.get('score',0) or 0,'specialist':specialist,'budget':budget})
+  rows.append({'model':record['model'],'effort':effort,'tier':tier,'eligible':reason is None,'reason':reason,'decision':decision,'rank':rank,'priority':record.get('routing_priority',0),'score':record.get('score',0) or 0,'specialist':specialist,'budget':budget,'model_execution':record.get('model_execution')})
  rows.sort(key=lambda r:(r['rank'],-r['priority'],-r['score'],r['model']))
  return rows
 
-def select(thread_id,kind,material_bytes,requested=None,*,task_purpose='general',task_id=None,allowed_model_tiers=None):
+def select(thread_id,kind,material_bytes,requested=None,*,task_purpose='general',task_id=None,allowed_model_tiers=None,workspace=None):
  config=load_config();complexity,reason=classify(kind,material_bytes,requested,config)
  route=config['specialist_routes'].get(task_purpose)
  if route and task_purpose!='general' and requested is None:
   complexity=route['flash_complexity'];reason='Purpose-specific specialist effort and Flash fallback'
- rows=candidates(thread_id,kind,complexity,task_purpose=task_purpose,material_bytes=material_bytes,task_id=task_id,allowed_model_tiers=allowed_model_tiers)
+ rows=candidates(thread_id,kind,complexity,task_purpose=task_purpose,material_bytes=material_bytes,task_id=task_id,allowed_model_tiers=allowed_model_tiers,workspace=workspace)
  chosen=next((r for r in rows if r['eligible']),None)
  if chosen is None:raise ValueError('No eligible live model: '+json.dumps([{k:r[k] for k in ('model','effort','reason')} for r in rows],ensure_ascii=False))
  wait=waiting_for(chosen['tier'],chosen['effort'],config['timeouts'][complexity],config=config)

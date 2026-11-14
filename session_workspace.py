@@ -177,6 +177,23 @@ def activate(root, job, record, profile):
                 'PreToolUse': [{'matcher': '*', 'hooks': [{'type': 'command', 'command': hook, 'timeout': 10}]}],
                 'PostToolUse': [{'matcher': '*', 'hooks': [{'type': 'command', 'command': hook + ' post', 'timeout': 10}]}]}}
             (target / 'hooks.json').write_text(json.dumps(hooks))
+            if profile.get('model_execution'):
+                # Composite agents opt out of ambient customizations. Explicitly
+                # attach only this lease's hooks, including when the CLI resolves
+                # the agent from the immutable job instead of the stable cwd.
+                hook_entry='hooks: '+json.dumps([str(target/'hooks.json')])+'\n'
+                for agent in (source/'agents/bridge-workspace/agent.md',
+                              target/'agents/bridge-workspace/agent.md'):
+                    text=agent.read_text()
+                    if '\ninheritCustomizations: false\n' not in text:
+                        raise ValueError('Composite agent must keep ambient customizations disabled')
+                    if '\nhooks:' in text:
+                        lines=[line for line in text.splitlines() if line.startswith('hooks:')]
+                        if lines != [hook_entry.strip()]:
+                            raise ValueError('Unexpected pre-existing composite hook declaration')
+                        continue
+                    agent.write_text(text.replace('inheritCustomizations: false\n',
+                                                  'inheritCustomizations: false\n'+hook_entry,1))
             for entry in target.rglob('*'):
                 entry.chmod(0o700 if entry.is_dir() else 0o600)
             target.chmod(0o700)

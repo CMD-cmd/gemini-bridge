@@ -53,6 +53,20 @@ class InstallTests(unittest.TestCase):
             self.invoke(args+['--adopt-example-policy'])
         self.assertFalse((self.root/'profile.json').exists())
 
+    def test_fixed_configuration_needs_exact_policy_before_setup(self):
+        args=self.args.copy()
+        args[args.index('--model')+1]='gemini-pro-orchestrator'
+        args[args.index('--effort')+1]='fixed'
+        with self.assertRaises(SystemExit):self.invoke(args)
+        self.assertFalse((self.root/'bin').exists())
+        self.assertFalse((self.root/'profile.json').exists())
+        self.invoke(args+['--adopt-example-policy'])
+        profile=json.loads((self.root/'profile.json').read_text())
+        self.assertEqual(profile['effort'],'fixed')
+        self.assertEqual(profile['model_execution']['mode'],'orchestrated')
+        policy=json.loads((self.root/'routing/policy.json').read_text())
+        self.assertFalse(policy['external_specialist_exception']['enabled'])
+
     def test_existing_profile_is_preserved(self):
         path = self.root/'profile.json'
         path.write_text('{"existing":true}')

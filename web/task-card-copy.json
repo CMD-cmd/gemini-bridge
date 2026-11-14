@@ -27,8 +27,11 @@
   },
   "review": {
     "pending": "待 Codex 核对",
-    "accepted": "检查通过",
-    "rejected": "检查未通过"
+    "accepted": "已采纳",
+    "accepted_with_changes": "修订后采纳",
+    "partially_accepted": "部分采纳",
+    "revision_requested": "待修改",
+    "rejected": "未采纳"
   },
   "actions": {
     "details": "查看详情 ›",

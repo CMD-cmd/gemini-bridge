@@ -10,14 +10,16 @@ const seenEventIds=new Set();
 // Keep the canonical identifier in the tooltip; only the display name is formatted.
 function renderModelHeader(value){
   const observed=String(value.observed_model||'').trim(),requested=String(value.requested_model||'').trim(),effort=String(value.requested_effort||'').trim();
+  const execution=value.model_execution||{},orchestrated=execution.mode==='orchestrated',fixed=orchestrated||execution.effort_mode==='fixed'||effort.toLowerCase()==='fixed';
+  const executionLabel=execution.label||value.execution_label;
   const raw=observed||requested;
   const suffix=effort&&['minimal','low','medium','high','xhigh','max'].includes(effort.toLowerCase())?'-'+effort.toLowerCase():'';
   const name=(suffix&&raw.toLowerCase().endsWith(suffix)?raw.slice(0,-suffix.length):raw).split(/[-_]+/).map(part=>part?part[0].toUpperCase()+part.slice(1):'').join(' ');
-  $('model').textContent=raw?`${observed?'模型':'请求模型'} · ${name}`:'模型未记录';
-  $('model').title=raw?`${observed?'实际返回模型':'请求模型'}：${raw}`:'';
-  $('effort').textContent=effort?'思考 '+effort[0].toUpperCase()+effort.slice(1):'';
-  $('effort').title='请求的思考强度；执行端未单独报告实际档位';
-  $('effort').hidden=!effort;
+  $('model').textContent=executionLabel?`组合执行 · ${executionLabel}`:raw?`${observed?'模型':'请求模型'} · ${name}`:'模型未记录';
+  $('model').title=orchestrated?`所选组合：${raw||'未记录'}；记录未逐步追踪实际后端模型`:raw?`${observed?'实际返回模型':'请求模型'}：${raw}`:'';
+  $('effort').textContent=fixed?'思考 系统固定':effort?'思考 '+effort[0].toUpperCase()+effort.slice(1):'';
+  $('effort').title=fixed?'组合采用系统固定配置，不提供独立的思考强度选项':'请求的思考强度；执行端未单独报告实际档位';
+  $('effort').hidden=!effort&&!fixed;
   $('model').parentElement.hidden=false;
 }
 
@@ -43,8 +45,9 @@ function renderDetails(){
  const fields=[['任务编号',card.job_id],['创建时间',timestamp(card.created_at)],['更新时间',timestamp(card.updated_at)],['输入文件',card.input_count??'未记录'],['验收时间',timestamp(card.reviewed_at)]];
  if(card.error)fields.push(['异常原因',card.error]);
  $('detail-fields').replaceChildren();for(const [key,value]of fields){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=key;dd.textContent=String(value);$('detail-fields').append(dt,dd);}
- const isReviewed=['accepted','rejected'].includes(card.review);
- $('review-note').textContent=(isReviewed&&card.review_note)?card.review_note:(card.review==='pending'?'尚无验收记录，等待 Codex 对照要求核对。':'未记录详细验收说明。');
+ const isReviewed=card.review!=='pending'&&Object.hasOwn(COPY.review,card.review);
+ const breakdown=[['已采纳的内容',card.accepted_items],['还需处理',card.review_issues],['修订说明',card.review_changes]].filter(([,items])=>items?.length).map(([label,items])=>label+'：\n'+items.map(item=>'• '+item).join('\n')).join('\n\n');
+ $('review-note').textContent=((isReviewed&&card.review_note)?card.review_note:(card.review==='pending'?'尚无验收记录，等待 Codex 对照要求核对。':'未记录详细验收说明。'))+(breakdown?'\n\n'+breakdown:'');
  $('criteria').replaceChildren();for(const criterion of Array.isArray(card.criteria)?card.criteria:[]){if(typeof criterion!=='string')continue;const li=document.createElement('li');li.textContent=criterion;$('criteria').append(li);}
  renderWorkspace();
  const url=safeLink(card.task_view_url);$('full-page').hidden=!url;if(url){$('full-link').href=url;$('page-url').value=url;}else{$('full-link').removeAttribute('href');$('page-url').value='';}
@@ -77,11 +80,10 @@ function render(value){
  card=next;
  const isErr=errorStates.has(card.status)||errorStates.has(card.progress?.stage);
  let s=COPY.states[card.status]||{label:'需要查看',description:'请查看任务详情与结束原因。'};
- if(card.status==='completed_unreviewed'&&card.review==='accepted')s={label:'检查通过',description:'交付已由 Codex 核对通过，可查看内容与完整记录。'};
- if(card.status==='completed_unreviewed'&&card.review==='rejected')s={label:'检查未通过',description:'交付已返回，尚未被采用。请查看验收记录与待处理问题。'};
+ if(card.review!=='pending'&&COPY.review[card.review])s={label:COPY.review[card.review],description:['partially_accepted','revision_requested'].includes(card.review)?'已保留可用内容，具体问题与后续处理见检查记录。':'采用内容和修订说明可在检查记录中查看。'};
  $('title').textContent=(card.title||card.job_id).replace(/^(?:operator|scout|reader|researcher|analyst|builder|reviewer)\s*[:：]\s*/i,'');
  $('status').textContent=s.label;
- const statusClass=card.review==='accepted'?'accepted':(card.review==='rejected'||isErr)?'failed':card.status==='completed_unreviewed'?'pending':card.status==='running'?'running':'neutral';
+ const statusClass=['accepted','accepted_with_changes'].includes(card.review)?'accepted':['partially_accepted','revision_requested'].includes(card.review)?'pending':(card.review==='rejected'||isErr)?'failed':card.status==='completed_unreviewed'?'pending':card.status==='running'?'running':'neutral';
  $('status').className='status '+statusClass;
  const hasDeliverables=Array.isArray(card.deliverables)&&card.deliverables.length>0;
  const errText=String(card.error||'').trim();
@@ -90,7 +92,7 @@ function render(value){
  renderModelHeader(card);
  const revEl=$('review');
  revEl.textContent=isErr&&card.review==='pending'?'尚无结果可核对':(COPY.review[card.review]||COPY.review.pending);
- revEl.dataset.tone=card.review==='accepted'?'done':card.review==='rejected'?'error':'';
+ revEl.dataset.tone=['accepted','accepted_with_changes'].includes(card.review)?'done':card.review==='rejected'?'error':['partially_accepted','revision_requested'].includes(card.review)?'pending':'';
  const p=card.progress||{},waiting=!terminal.has(card.status);
  const notice=waiting&&p.no_recent_stream_activity?COPY.quiet_notice:waiting&&p.soft_budget_exceeded&&p.meaningful_events>0?COPY.progress_notice:'';
  $('notice').textContent=notice;$('notice').hidden=!notice;
@@ -192,7 +194,7 @@ window.addEventListener('message',e=>{
  if(m.method==='ping'&&m.id!==undefined)parent.postMessage({jsonrpc:'2.0',id:m.id,result:{}},'*');
  if(m.method==='ui/resource-teardown'){active=false;clearInterval(poll);for(const p of pending.values()){clearTimeout(p.timer);p.reject(new Error('视图已关闭'));}pending.clear();if(m.id!==undefined)parent.postMessage({jsonrpc:'2.0',id:m.id,result:{}},'*');}
 });
-function needsLiveRefresh(){return card&&(!terminal.has(card.status)||(card.status==='completed_unreviewed'&&!['accepted','rejected'].includes(card.review)));}
+function needsLiveRefresh(){return card&&(!terminal.has(card.status)||(card.status==='completed_unreviewed'&&!['accepted','accepted_with_changes','rejected'].includes(card.review)));}
 let lastPollAt=0;
 const poll=setInterval(()=>{const now=Date.now(),delay=document.hidden||terminal.has(card?.status)?15000:2000;if(active&&needsLiveRefresh()&&!refreshing&&!polling&&now-lastPollAt>=delay){lastPollAt=now;refresh({silent:true});}},2000);
 document.addEventListener('visibilitychange',()=>{if(active&&!document.hidden&&needsLiveRefresh())refresh({silent:true});});

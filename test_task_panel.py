@@ -68,7 +68,7 @@ class RealtimeContractTests(unittest.TestCase):
         self.assertNotIn('PRIVATE_SOURCE',json.dumps(projected))
         self.assertNotIn('source',entries[0])
         self.assertIn('native-panel-v5.html',str(task_card.LEGACY_PANEL_URIS))
-        self.assertTrue(task_card.PANEL_URI.endswith('native-panel-v9.html'))
+        self.assertTrue(task_card.PANEL_URI.endswith('native-panel-v10.html'))
 
     def test_polling_uses_only_read_tools_and_stops_at_terminal(self):
         panel=(task_card.ROOT/'web/native-panel.js').read_text()

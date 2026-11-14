@@ -25,7 +25,9 @@
 
 Hydrogen High 也被配置为生图任务的编排候选，继续调用现有 `generate_image` 工具；图像后端仍由服务商选择。本次没有新生成图片，不能把文本验收当作新型号的生图全链路验收。
 
-Orchestrator (Carbon) 已完成目录与独立 ACP 零生成配置检查：型号选中得到确认，`thought_level` 选项消失。它由 Carbon 规划／复核、Hydrogen 执行，属于固定配置的单会话模式；尚未加入 Bridge 自动分发，不冒充 Carbon High 或子代理测试通过。接入要求见 [Orchestrator 适配](../skills/gemini-bridge/references/orchestrator.md)。
+Orchestrator (Carbon) 已加入工作区任务的自动选模候选。它在同一会话中由 Carbon 规划／复核、Hydrogen 执行，使用 `effort="fixed"` 表示系统固定配置；Bridge 不向 CLI 传入虚构的思考档位。自动建议要求获准工作区与命令，且不混用原生子代理；普通文字任务继续按需使用单模型。
+
+真实离线报告实现完成了规划、最初8项测试失败、实现与修正、14项测试通过；同一供应方会话追加功能后17项测试通过，原测试与历史交付保持不变。运行中的实际命令取消也收到远端ACK并完成进程回收。目录／配置回执与实际后端逐步模型追踪分别说明，后者目前不可见。接入及验证边界见 [Orchestrator 适配](../skills/gemini-bridge/references/orchestrator.md)。
 
 ### 能力与分工
 

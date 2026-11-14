@@ -62,6 +62,8 @@ def resolve(root,args,profile,grant,workspace, *, executing_job=None):
     if args.get('kind','copy')=='image':raise ValueError('Image continuation is not supported')
     if (profile['model'],profile['effort'])!=(old['profile']['model'],old['profile']['effort']):
         raise ValueError('Continue with the same actual model and effort, or start a new conversation')
+    if profile.get('model_execution') != old['profile'].get('model_execution'):
+        raise ValueError('Continue with the same fixed model execution contract, or start a new conversation')
     old_spec=old['profile'].get('workspace')
     if (old_spec or {}).get('subagents'):
         raise ValueError('Native-child sessions require a new root task; keep prior deliveries as scoped inputs')

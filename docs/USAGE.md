@@ -56,7 +56,8 @@
    - 进度信息全部来自本地观察到的真实 CLI 事件、工具调用、文件动作与进程状态，**不会展示隐藏思考正文，也不会捏造完成百分比或虚假的云端心跳**。
 5. **实质验收（`bridge_review`）**：
    - CLI 返回 `SUCCESS` 或状态变为 `completed_unreviewed` **仅代表外部执行结束，不等于 Codex 已验收通过**。
-   - Codex 会检查实际运行模型、回收的交付文件、Git 工作区差异以及受保护的命令执行退出码，确认无误后调用 `bridge_review` 标记采用（accepted）、修订或拒绝。
+   - Codex 会按内容核对事实、文件差异及必要检查。没有问题的部分保留采纳，局部问题可由 Codex 修订，或请 Gemini 解释／修改后再核对；不会因小的格式或文风问题整份拒绝。
+   - `bridge_review` 支持“已采纳（accepted）”“修订后采纳（accepted_with_changes）”“部分采纳（partially_accepted）”“待修改（revision_requested）”“未采纳（rejected）”。按需附已采用内容、待处理项与修订说明，多轮检查保留历史。执行状态与内容采用分别记录，原始返回和采用版本各自保留。
 6. **关闭范围（`complete` / `disable`）**：当前授权范围内的外部任务全部收齐后，Codex 将 scope 标记为 `complete`；若你在中途要求停止使用 Gemini，则执行 `disable` 并自动取消该范围内仍在排队或运行的任务。
 
 ---

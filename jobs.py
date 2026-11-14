@@ -14,6 +14,8 @@ from specialist_budget import SpecialistBudget
 
 KINDS = ('copy', 'english', 'extract', 'code-map', 'visual', 'prototype', 'image')
 TERMINAL = ('completed_unreviewed', 'failed_or_unverified', 'bridge_error', 'cancelled', 'timeout', 'interrupted')
+REVIEW_VERDICTS = ('accepted', 'accepted_with_changes', 'partially_accepted', 'revision_requested', 'rejected')
+ADOPTING_VERDICTS = ('accepted', 'accepted_with_changes', 'partially_accepted')
 TEXT_SUFFIXES = {'.txt', '.md', '.json', '.csv', '.html', '.swift', '.py', '.js', '.ts', '.tsx', '.css'}
 IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
 IDENTITY_WAIT_SECONDS = 10
@@ -213,6 +215,7 @@ class Jobs:
         profile.pop('workspace', None)
         profile.pop('continuation',None)
         profile.pop('conversation_context',None)
+        profile.pop('model_execution',None)
         profile['transport']=args.get('transport','auto')
         if profile['transport'] not in ('headless','acp','auto'):raise ValueError('Unknown transport')
         if profile['transport']=='acp' and kind=='image':
@@ -339,13 +342,19 @@ class Jobs:
             selection_tiers = authorized_scope['allowed_model_tiers']
             if purpose == 'general' and not authorized_scope.get('capability_routing_authorized',False):
                 selection_tiers = [tier for tier in selection_tiers if tier == 'low']
-            picked, selection = select(args['thread_id'], kind, total + len(prompt.encode()), args.get('task_complexity'), task_purpose=purpose, task_id=args['task_id'], allowed_model_tiers=selection_tiers)
+            picked, selection = select(args['thread_id'], kind, total + len(prompt.encode()), args.get('task_complexity'), task_purpose=purpose, task_id=args['task_id'], allowed_model_tiers=selection_tiers, workspace=workspace_spec)
             profile.update(model=picked['model'], effort=picked['effort'])
             if 'timeout_seconds' not in args:
                 profile['timeout_seconds'] = picked['timeout_seconds']
         elif 'task_complexity' in args:
             from model_selection import classify
             classify(kind, total, args['task_complexity'])
+        from model_execution import bind
+        from task_mode import ROUTING
+        model_policy=json.loads((ROUTING/'policy.json').read_text())
+        profile=bind(profile,model_policy.get('external_models',{}).get(profile['model']+'/'+profile['effort']))
+        if profile.get('model_execution') and (kind=='image' or (workspace_spec or {}).get('subagents')):
+            raise ValueError('Fixed orchestration does not inherit image or native-child execution')
         initial_delegation = self.modes.authorize(args, profile)
         if 'model' in args:
             from task_mode import model_usage
@@ -380,10 +389,12 @@ class Jobs:
                 if selection.get('specialist'):raise ValueError('Specialist budget changed; no provider started')
                 profile.update(model=picked['model'],effort=picked['effort'])
                 if 'timeout_seconds' not in args:profile['timeout_seconds']=picked['timeout_seconds']
+                profile=bind(profile,model_policy.get('external_models',{}).get(profile['model']+'/'+profile['effort']))
                 self.modes.authorize(args,profile)
                 specialist=False
         from model_selection import waiting_for
         from task_mode import model_usage
+        profile=bind(profile,model_policy.get('external_models',{}).get(profile['model']+'/'+profile['effort']))
         waiting=waiting_for(model_usage(profile)[0],profile['effort'],profile.get('timeout_seconds',180),
                             requested=args.get('timeout_seconds'),config=route_config)
         profile['timeout_seconds']=waiting['timeout_seconds']
@@ -456,7 +467,7 @@ class Jobs:
             from runner_adapter import descriptor
             capabilities=probe(ROOT,persist=False)
             return {'status':'planned','model_calls':0,'reserved':False,'runner':descriptor(capabilities),
-                    'model':profile['model'],'effort':profile['effort'],'model_selection':selection,
+                    'model':profile['model'],'effort':profile['effort'],'model_execution':profile.get('model_execution'),'model_selection':selection,
                     'task_id':args.get('task_id'),'thread_id':args.get('thread_id'),
                     'files':files,'material_bytes':total,'packed_bytes':len(envelope.encode()),'workspace':workspace_spec,
                     'continuation':continuation_record,'acceptance':criteria,
@@ -469,7 +480,7 @@ class Jobs:
                  'request_id': request_id,
                  'request_fingerprint': request_fingerprint,
                  'created_at': time.time(), 'updated_at': time.time(), 'model': profile['model'],
-                 'effort': profile['effort'], 'model_selection':selection, 'input_limits':limits, 'acceptance': criteria, 'review': 'pending',
+                 'effort': profile['effort'], 'model_execution':profile.get('model_execution'), 'model_selection':selection, 'input_limits':limits, 'acceptance': criteria, 'review': 'pending',
                  'output_contract': contract, 'task_purpose':purpose, 'specialist':specialist,
                  'specialist_budget':reservation if specialist else None,
                  'image_count':image_count if kind=='image' else None,
@@ -685,9 +696,16 @@ class Jobs:
 
     def summary(self, job_id):
         from progress import enrich
+        from task_card import review_record
         value=enrich(self.report(job_id));state=value['state'];report=value.get('report') or {}
+        review=review_record(job_id) or {}
+        review_summary={key:review[key] for key in ('verdict','note','reviewed_at') if key in review}
+        if 'note' in review_summary:review_summary['note']=review_summary['note'][:2000]
+        review_summary.update({key:review.get(key,[])[:10] for key in ('accepted_items','issues','changes')})
+        review_summary['review_count']=len(review.get('history',[])) or int(bool(review))
         return {'job_id':job_id,'title':state.get('title'),'status':state['status'],'review':state.get('review'),
-                'model':report.get('observed_model') or state.get('model'),'requested_effort':state.get('effort'),
+                'acceptance':review_summary,
+                'model':report.get('observed_model') or state.get('model'),'requested_effort':state.get('effort'),'model_execution':report.get('model_execution') or state.get('model_execution'),
                 'response':report.get('response','')[:2000],
                 'response_truncated':report.get('response_truncated',False) or len(report.get('response',''))>2000,
                 'deliverables':[{k:f[k] for k in ('id','name','bytes','sha256') if k in f} for f in report.get('deliverables',[])],
@@ -714,18 +732,34 @@ class Jobs:
     def review(self, job_id, args):
         with self.lock:
             state = self.state(job_id)
-            failed_job_rejection=(state['status'] in TERMINAL and args.get('verdict')=='rejected')
-            if state['status'] != 'completed_unreviewed' and not failed_job_rejection:
-                raise ValueError('Only successfully completed jobs can be reviewed')
+            if state['status'] not in TERMINAL:
+                raise ValueError('Wait for execution to stop before recording a content review')
             verdict = args.get('verdict')
             note = args.get('note', '')
-            if verdict not in ('accepted', 'rejected') or not isinstance(note, str) or not note.strip() or len(note) > 2000:
-                raise ValueError('Review requires accepted/rejected and a substantive note')
-            record = {'verdict': verdict, 'note': note, 'reviewed_at': time.time(), 'criteria': state['acceptance']}
-            atomic_json(ROOT / 'runs' / job_id / 'acceptance.json', record)
-            report_path = ROOT / 'runs' / job_id / 'report.json'
+            if verdict not in REVIEW_VERDICTS or not isinstance(note, str) or not note.strip() or len(note) > 8000:
+                raise ValueError('Review requires a supported verdict and a substantive note')
+            items={}
+            for field in ('accepted_items','issues','changes'):
+                value=args.get(field,[])
+                if not isinstance(value,list) or len(value)>100 or any(not isinstance(x,str) or not x.strip() or len(x)>2000 for x in value):
+                    raise ValueError('Review '+field+' must contain concise nonempty text items')
+                items[field]=value
+            job=ROOT/'runs'/job_id
+            report_path=job/'report.json'
+            report=json.loads(report_path.read_text()) if report_path.exists() else {}
+            if verdict in ADOPTING_VERDICTS and state['status']!='completed_unreviewed':
+                from bridge import provider_execution_aborted
+                text=(report.get('response') or '').strip()
+                if not (text and not provider_execution_aborted(text)) and not report.get('deliverables') and not report.get('generated_images'):
+                    raise ValueError('No existing content to adopt; keep the execution outcome and request a revision instead')
+            record={'verdict':verdict,'note':note,'reviewed_at':time.time(),
+                    'criteria':state.get('acceptance',[]),'execution_status':state['status'],**items}
+            history_path=job/'acceptance.json'
+            previous=json.loads(history_path.read_text()) if history_path.exists() else {}
+            history=previous.get('history') or ([previous] if previous else [])
+            record['history']=[*history,dict(record)]
+            atomic_json(history_path,record)
             if report_path.exists():
-                report = json.loads(report_path.read_text())
                 report['artifact_review'] = verdict
                 atomic_json(report_path, report)
             return self.update(job_id, review=verdict)

@@ -41,4 +41,4 @@ Carbon 接替高档首选，Hydrogen 接替低档首选。Hydrogen 不再只承�
 
 ## Orchestrator 与子代理
 
-Orchestrator 是单会话的规划／执行协作模式，不等同多子代理。其思考强度固定，不能写成 Carbon High。当前仅完成目录与零生成配置检查，尚未加入 Bridge 自动分发。接入要求见 [Orchestrator 适配](orchestrator.md)；已有单层子代理边界见 [原生子任务](native-readers.md)。
+Orchestrator 是单会话的规划／执行协作模式，不等同多子代理。其思考强度固定，不能写成 Carbon High。固定配置、卡片、身份与续聊适配已实现，实际可调用范围以实时策略的运行资格为准。使用要求见 [Orchestrator](orchestrator.md)；已有单层子代理边界见 [原生子任务](native-readers.md)。

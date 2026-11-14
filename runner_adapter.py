@@ -37,6 +37,8 @@ class AntigravityAdapter:
             if value is not None:
                 if not isinstance(value, str) or not value.strip():
                     raise ValueError(f'{name} must be a nonempty string')
+                if name == 'effort' and value == 'fixed':
+                    continue
                 add(name, value)
         if sandbox:
             add('sandbox')

@@ -2,7 +2,7 @@
 import json
 
 
-def verify_tool_audit(updates, audit, conversation, model):
+def verify_tool_audit(updates, audit, conversation, model, model_execution=None):
     """Match protocol IDs or exact raw arguments, never human-facing titles."""
     from workspace_guard import _digest
     observed={};missing=[]
@@ -12,8 +12,10 @@ def verify_tool_audit(updates, audit, conversation, model):
             observed.setdefault(ident,{}).update(update)
         else:
             missing.append('missing_protocol_tool_id:'+str(index))
+    from model_execution import tool_identity_allowed
+    identity_policy={'model':model,'effort':'fixed' if model_execution else 'medium','model_execution':model_execution}
     rows={row['stepIdx']:row for row in audit if row.get('kind')=='pre'
-          and row.get('conversationId')==conversation and row.get('modelName')==model
+          and row.get('conversationId')==conversation and tool_identity_allowed(identity_policy,row.get('modelName'))
           and type(row.get('stepIdx')) is int}
     consumed=set();matched=[]
     for ident,update in observed.items():
@@ -37,7 +39,7 @@ def run(root, profile, prompt, job, *, cancel, on_process, before_execute,
     if spec.get('subagents'):
         raise ValueError('Native subagents use the headless workspace route')
     try:
-        record=prepare(job,spec,profile['model'],profile.get('timeout_seconds',300),effort=profile['effort'])
+        record=prepare(job,spec,profile['model'],profile.get('timeout_seconds',300),effort=profile['effort'],model_execution=profile.get('model_execution'))
         configure_agent(job,record)
     except (OSError,ValueError) as error:
         raise ProviderNotStarted('ACP workspace preparation failed: '+str(error)) from error
@@ -101,7 +103,7 @@ def run(root, profile, prompt, job, *, cancel, on_process, before_execute,
         audit_path=job/'workspace-audit.jsonl'
         audit=[json.loads(line) for line in audit_path.read_text().splitlines()] if audit_path.exists() else []
         evidence=verify_tool_audit(report.get('tool_calls',[]),audit,
-                                   report.get('provider_session_id'),profile['model'])
+                                   report.get('provider_session_id'),profile['model'],profile.get('model_execution'))
         report['workspace_guard_verification']=evidence
         if not evidence['verified']:
             report.setdefault('failure_reasons',[]).append('workspace_tool_audit_missing')

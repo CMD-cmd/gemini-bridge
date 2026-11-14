@@ -208,7 +208,7 @@ def read_parent(home, thread_id, now=None, *, require_active=True):
 
 
 SPECIALIST_PURPOSES = {
-    'general': {'efforts':['low','medium','high','xhigh'], 'kinds':['copy','english','extract','code-map','visual','prototype','image']},
+    'general': {'efforts':['low','medium','high','xhigh','fixed'], 'kinds':['copy','english','extract','code-map','visual','prototype','image']},
     'tone_polish': {'efforts': ['low', 'medium', 'high'], 'kinds': ['copy', 'english']},
     'important_communication': {'efforts': ['low', 'medium', 'high'], 'kinds': ['copy', 'english']},
     'sensitive_communication': {'efforts': ['low', 'medium', 'high'], 'kinds': ['copy', 'english']},
@@ -251,6 +251,7 @@ def decide_external(policy, model, effort, child_model, child_effort, *,
                  and key in exception['allowed_combinations']
                  and candidate.get('specialist_only') is True
                  and candidate.get('usage_tier', 'high') == exception.get('allowed_usage_tiers', {}).get(key, 'high')
+                 and (child_effort != 'fixed' or (candidate.get('model_execution', {}).get('mode') == 'orchestrated' and candidate.get('model_execution', {}).get('effort_mode') == 'fixed'))
                  and candidate.get('model') == child_model and candidate.get('reasoning_effort') == child_effort
                  and dispatch_mode == 'auto' and purpose is not None and isinstance(rule, dict)
                  and isinstance(configured_efforts, list) and isinstance(rule.get('kinds'), list)

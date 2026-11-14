@@ -26,11 +26,11 @@ _CHILDREN = []
 READ_LIMIT = 16 * 1024 * 1024
 ARTIFACTS = ('submission.json', 'prompt.txt', 'inputs.json', 'requested-profile.json',
              'report.json', 'result.md', 'acceptance.json')
-PROFILE_KEYS = ('model', 'effort', 'timeout_seconds')
+PROFILE_KEYS = ('model', 'effort', 'timeout_seconds', 'model_execution')
 SUBMISSION_KEYS = ('prompt', 'title', 'kind', 'acceptance', 'dispatch_mode',
                    'output_contract', 'files', 'thread_id', 'task_id','image_count','image_retry_limit', 'timeout_seconds', 'request_id', 'task_complexity', 'task_purpose', 'selection_reason', 'workspace')
 SUMMARY_KEYS = ('job_id', 'status', 'title', 'kind', 'model', 'effort', 'review',
-                'input_count', 'created_at', 'updated_at','execution_mode','delivery_count','workspace')
+                'input_count', 'created_at', 'updated_at','execution_mode','delivery_count','workspace','model_execution')
 INPUT_KEYS = ('name', 'sha256', 'bytes', 'kind')
 IMAGE_KEYS = ('id', 'format', 'mime_type', 'width', 'height', 'bytes', 'sha256')
 CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"

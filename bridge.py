@@ -21,7 +21,7 @@ class ProviderNotStarted(ValueError):
     """Popen failed before a CLI generation process could start."""
 
 
-EFFORTS = ("low", "medium", "high", "xhigh", "max")
+from model_execution import EFFORTS
 MAX_GENERATION_SECONDS = 1800
 GENERATION_EXIT_GRACE_SECONDS = 30
 VERSION = "0.13.0"
@@ -29,7 +29,7 @@ VERSION = "0.13.0"
 ROOT = Path(__file__).resolve().parent
 SOURCE_FINGERPRINT = hashlib.sha256(b"".join(
     (ROOT / name).read_bytes() if (ROOT / name).exists() else b""
-    for name in ("bridge.py", "activity.py", "jobs.py", "service.py", "task_mode.py", "input_limits.py", "input-limits.json", "model_selection.py", "specialist_budget.py", "model-routing.json", "cli-network.json", "image_artifacts.py", "script/image_tool_guard.py", "workspace.py", "command_broker.py", "cli_capabilities.py", "runner_adapter.py", "continuation.py", "retry_policy.py", "acp_client.py", "acp_execution.py", "acp_workspace.py", "run_control.py", "session_workspace.py", "script/workspace_session_guard.py", "recovery.py", "catalog_cache.py", "project_research.py", "project_crossref.py", "project_results.py", "project_documents.py", "native_child_profiles.py", "activity_view.py", "task_card.py", "preview_spec.py", "preview_runtime.py", "preview_evidence.py", "project_tools.py", "project_tools_mcp.py", "project_gateway.py", "project_scope.py", "project_evidence.py", "native_children.py", "native-children-capability.json", "workspace_guard.py", "script/workspace_tool_guard.py", "script/workspace_command.py"))).hexdigest()
+    for name in ("bridge.py", "model_execution.py", "activity.py", "jobs.py", "service.py", "task_mode.py", "input_limits.py", "input-limits.json", "model_selection.py", "specialist_budget.py", "model-routing.json", "cli-network.json", "image_artifacts.py", "script/image_tool_guard.py", "workspace.py", "command_broker.py", "cli_capabilities.py", "runner_adapter.py", "continuation.py", "retry_policy.py", "acp_client.py", "acp_execution.py", "acp_workspace.py", "run_control.py", "session_workspace.py", "script/workspace_session_guard.py", "recovery.py", "catalog_cache.py", "project_research.py", "project_crossref.py", "project_results.py", "project_documents.py", "native_child_profiles.py", "activity_view.py", "task_card.py", "preview_spec.py", "preview_runtime.py", "preview_evidence.py", "project_tools.py", "project_tools_mcp.py", "project_gateway.py", "project_scope.py", "project_evidence.py", "native_children.py", "native-children-capability.json", "workspace_guard.py", "script/workspace_tool_guard.py", "script/workspace_command.py"))).hexdigest()
 
 
 def prepare_task_agent(job, text_only, generate_image=False, model=None, image_count=1, image_retry_limit=1, account_proof=None, workspace_record=None):
@@ -128,8 +128,8 @@ def load_profile(path):
     for key in ("model", "effort"):
         if not isinstance(profile.get(key), str) or not profile[key].strip():
             raise ValueError("Missing profile field: " + key)
-    if profile["effort"] not in EFFORTS:
-        raise ValueError("Invalid effort")
+    from model_execution import validate
+    validate(profile)
     slug_effort = profile["model"].rsplit("-", 1)[-1]
     if slug_effort in EFFORTS and slug_effort != profile["effort"]:
         raise ValueError("Model slug effort and requested effort disagree")
@@ -238,6 +238,8 @@ def ensure_account_route(require_no_overage=False, diagnostic_proxy=None):
 
 def catalog_error_category(stderr):
     text = str(stderr or '').lower()
+    if any(word in text for word in ('no space left on device', 'disk quota exceeded', 'database or disk is full')):
+        return 'local_resource'
     if any(word in text for word in ('invalid_grant', 'token has been expired or revoked', 'token revoked')):
         return 'authentication'
     if 'user location is not supported' in text:
@@ -266,6 +268,7 @@ def provider_failure_details(error):
         return 'local_configuration', 'CLI 本地执行配置未加载成功，尚未完成任务工具执行。'
     category = catalog_error_category(error)
     messages = {
+        'local_resource': '本机存储空间不足，CLI 无法可靠写入日志或账户状态；先恢复空间，再核对登录，不能据此判定账号已退出。',
         'unsupported_location': 'Google 拒绝了本次请求所在地区，未生成内容。请核对实际出口；节点名称不代表服务端识别的地区。',
         'catalog_network': '连接 Google 时中断，未能取得完整回复；这不代表登录已失效。',
         'catalog_server_error': 'Google 返回暂时服务错误，本次没有取得完整回复。',
@@ -274,6 +277,15 @@ def provider_failure_details(error):
         'catalog_access_denied': 'Google 拒绝了本次访问，请查看任务记录中的具体原因。',
     }
     return category, messages.get(category, 'Google 返回执行错误，请查看任务记录中的具体原因。')
+
+
+def provider_execution_aborted(response):
+    """The CLI may end a turn normally while returning only its error banner."""
+    return isinstance(response,str) and response.strip() in {
+        'Agent execution terminated due to error.',
+        '⚠ Agent execution terminated due to error.',
+        '⚠️ Agent execution terminated due to error.',
+    }
 
 
 def get_model_catalog(evidence_dir=None, *, diagnostic_proxy=None, force_refresh=False):
@@ -427,7 +439,7 @@ def run_job(profile_path, prompt_path, *, job_id=None, cancel=None, on_process=N
             raise ValueError('Native workspaces require a controlled non-image task')
         try:
             from workspace import prepare
-            workspace_record = prepare(job,profile['workspace'],profile['model'],cli_timeout,effort=profile['effort'])
+            workspace_record = prepare(job,profile['workspace'],profile['model'],cli_timeout,effort=profile['effort'],model_execution=profile.get('model_execution'))
         except (ValueError,OSError,subprocess.SubprocessError) as error:
             raise ProviderNotStarted('Workspace preparation failed before generation: '+str(error)) from error
         text_only=False
@@ -584,6 +596,9 @@ def run_job(profile_path, prompt_path, *, job_id=None, cancel=None, on_process=N
         except (ValueError,OSError) as error:
             workspace_collection_error=str(error)
     provider_error_category, provider_error_message = provider_failure_details((terminal or {}).get('error'))
+    if provider_execution_aborted(response):
+        provider_error_category='provider_execution_aborted'
+        provider_error_message='CLI 报告执行因错误终止，尚无可验收的交付；正常结束标记不代表生成成功。'
     failure_reasons = []
     if (job/'native-child-stop.requested').exists():failure_reasons.append('native_child_identity_unverified')
     if provider_error_category:
@@ -672,11 +687,11 @@ def run_job(profile_path, prompt_path, *, job_id=None, cancel=None, on_process=N
         "output_validation_mode": 'strict' if contract.get('strict', False) else 'advisory',
         "generated_images": generated_images, "image_generation": image_metadata,
         "output_contract": contract,
-        "requested_model": profile["model"], "requested_effort": profile["effort"],
+        "requested_model": profile["model"], "requested_effort": profile["effort"], "model_execution": profile.get("model_execution"),
         "observed_model": observed_model, "model_matches": model_matches,
         "runner":"antigravity", "provider_session_id":(init or {}).get("conversation_id"),
         "continue_job_id":(profile.get("continuation") or {}).get("parent_job_id"),
-        "effort_verification": "model slug and launch arguments; independent backend effort not reported",
+        "effort_verification": "provider-fixed orchestration; no independent component trace" if profile.get("model_execution") else "model slug and launch arguments; independent backend effort not reported",
         "native_status": (terminal or {}).get("status"),
         "response": response,
         "usage": (terminal or {}).get("usage"),

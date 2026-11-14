@@ -48,4 +48,4 @@ Hydrogen XHigh 有独立的有界观察预算：默认15分钟、最多30分钟�
 
 新模型公开 AA v5.0.1 数据单独记录，不与原生角色冻结的 v4.3.2 分数混算；安装者采用的精确模型能力例外只改变外部分发，不更改主 Codex、原生七角色或 editor 映射。只验收了两条 Medium 文本生成；其他变体与生图编排有目录/配置检查，没有借用这次文本结果宣称已完成全功能实测。
 
-Orchestrator 是固定配置的组合执行模式，不等同 Carbon High，也不沿用 model/effort 的单模型假设。当前目录与独立 ACP 零生成配置检查通过，尚未加入自动候选；接入和验证要求见 [Orchestrator 适配](orchestrator.md)。
+Orchestrator 是固定配置的组合执行模式，不等同 Carbon High，也不沿用 model/effort 的单模型假设。组合模式使用 `effort="fixed"` 表示系统固定配置，不作为思考档位传给 CLI。当前运行资格由策略决定；具备授权目录和命令、需要规划／实现／检查的任务可考虑该模式，纯写作／查询仍优先单模型。使用与验证要求见 [Orchestrator](orchestrator.md)。

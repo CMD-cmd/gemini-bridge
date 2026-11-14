@@ -38,6 +38,13 @@ def runtime_decision(thread_id, profile, *, executing=False, task_purpose=None, 
         raise RuntimePending(str(error)) from error
     context = {k: v for k, v in {'task_purpose': task_purpose, 'kind': kind, 'dispatch_mode': dispatch_mode}.items() if v is not None}
     decision = resolver.decide_external(policy, model, effort, profile['model'], profile['effort'], **context)
+    record=policy.get('external_models',{}).get(profile['model']+'/'+profile['effort'],{})
+    if decision.get('enabled') and record.get('model_execution'):
+        qualification=record.get('runtime_qualification',{})
+        qualified=qualification.get('status')=='qualified'
+        trial=qualification.get('status')=='trial' and qualification.get('thread_id')==thread_id
+        if not (qualified or trial):
+            decision.update(enabled=False,reason='Composite execution is awaiting scoped runtime qualification; retain the existing model routes')
     if decision.get('enabled') and decision.get('required_billing_route'):
         ensure_account_route()
     decision.update(evidence=evidence, policy_sha256=hashlib.sha256(raw).hexdigest())
@@ -170,6 +177,10 @@ def model_usage(profile):
     policy = json.loads((ROUTING / 'policy.json').read_text())
     key = str(profile.get('model')) + '/' + str(profile.get('effort'))
     record = policy.get('external_models', {}).get(key, {})
+    from model_execution import bind
+    expected_profile=bind(profile,record)
+    if profile.get('model_execution') != expected_profile.get('model_execution'):
+        raise ValueError('Model execution contract differs from the current exact policy')
     tier = record.get('usage_tier', 'high')
     if tier not in ('low', 'high'):
         tier = 'high'
